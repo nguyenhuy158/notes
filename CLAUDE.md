@@ -26,6 +26,10 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   này đã xoá) — số icon cần dùng tăng lên, tree-shake tốt nên không đáng tự
   vẽ nữa. Xem [dev-notes/icon-libs.md](../dev-notes/icon-libs.md) để biết vì
   sao chọn lucide thay vì tabler/heroicons/phosphor.
+- **Ưu tiên icon hơn chữ** cho nút hành động/điều hướng (vd nút "về hôm nay"
+  ở Calendar dùng icon `CalendarDays`, không phải label chữ) — app mobile,
+  icon nhận diện nhanh hơn, đỡ tốn chỗ. Chỉ giữ chữ khi icon một mình gây mơ
+  hồ (nút Lưu/Huỷ, tab bar có cả icon+label).
 
 ## Bảo mật: mime allow-list cho media
 

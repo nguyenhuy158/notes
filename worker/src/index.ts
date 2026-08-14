@@ -75,15 +75,18 @@ app.get("/api/days", async (c) => {
   if (!MONTH_RE.test(month)) return c.json({ error: "invalid month" }, 400);
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    "SELECT date, type FROM notes_entries WHERE user_id = ? AND date LIKE ? GROUP BY date, type"
+    "SELECT date, type, mood FROM notes_entries WHERE user_id = ? AND date LIKE ? GROUP BY date, type, mood"
   )
     .bind(userId, `${month}-%`)
-    .all<{ date: string; type: NoteType }>();
+    .all<{ date: string; type: NoteType; mood: string | null }>();
   const days: Record<string, NoteType[]> = {};
+  const moods: Record<string, string> = {};
   for (const row of results) {
     (days[row.date] ??= []).push(row.type);
+    // Chỉ giữ 1 mood đại diện/ngày (cái xuất hiện trước trong kết quả là đủ).
+    if (row.mood && !moods[row.date]) moods[row.date] = row.mood;
   }
-  return c.json({ days });
+  return c.json({ days, moods });
 });
 
 // "Kỷ niệm": note trùng ngày/tháng ở các năm trước, để nhắc lại chuyện cũ

@@ -4,7 +4,7 @@ import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
 import { monthString, parseDate, todayString } from "../date";
 import { cn } from "../ui/cn";
-import { Camera, Mic, PenLine } from "lucide-react";
+import { Camera, CalendarDays, Mic, PenLine } from "lucide-react";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
@@ -71,6 +71,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
     return { year: now.getFullYear(), month: now.getMonth() };
   });
   const [days, setDays] = useState<Record<string, NoteType[]>>({});
+  const [moods, setMoods] = useState<Record<string, string>>({});
 
   const month = monthString(view.year, view.month);
 
@@ -78,7 +79,11 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
     let cancelled = false;
     api
       .days(month)
-      .then((r) => !cancelled && setDays(r.days))
+      .then((r) => {
+        if (cancelled) return;
+        setDays(r.days);
+        setMoods(r.moods);
+      })
       .catch(() => {});
     return () => {
       cancelled = true;
@@ -120,15 +125,19 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
         >
           ‹
         </button>
-        <button
-          type="button"
-          onClick={goToday}
-          disabled={isCurrentMonth}
-          className="text-base font-semibold text-fg disabled:cursor-default"
-        >
-          {t.calendar_month(view.month + 1, view.year)}
-          {!isCurrentMonth && <span className="ml-1.5 text-xs font-medium text-primary">{t.calendar_go_today}</span>}
-        </button>
+        <span className="flex items-center gap-1.5">
+          <span className="text-base font-semibold text-fg">{t.calendar_month(view.month + 1, view.year)}</span>
+          {!isCurrentMonth && (
+            <button
+              type="button"
+              onClick={goToday}
+              aria-label={t.calendar_go_today}
+              className="grid h-7 w-7 place-items-center rounded-ui text-primary transition hover:bg-surface-muted"
+            >
+              <CalendarDays size={16} />
+            </button>
+          )}
+        </span>
         <button
           type="button"
           onClick={() => shiftMonth(1)}
@@ -153,6 +162,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
         {cells.map(({ day, date }) => {
           const isToday = date === today;
           const types = Array.from(new Set(days[date] ?? []));
+          const mood = moods[date];
 
           return (
             <button
@@ -166,12 +176,16 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
               )}
             >
               <span>{day}</span>
-              <span className="flex h-3 items-center gap-0.5">
-                {types.map((type) => {
-                  const Icon = TYPE_ICON[type];
-                  return <Icon key={type} size={11} className="text-fg-muted" />;
-                })}
-              </span>
+              {mood ? (
+                <span className="text-sm leading-none">{mood}</span>
+              ) : (
+                <span className="flex h-3 items-center gap-0.5">
+                  {types.map((type) => {
+                    const Icon = TYPE_ICON[type];
+                    return <Icon key={type} size={11} className="text-fg-muted" />;
+                  })}
+                </span>
+              )}
             </button>
           );
         })}

@@ -26,7 +26,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  days: (month: string) => request<{ days: Record<string, NoteType[]> }>(`/api/days?month=${month}`),
+  days: (month: string) =>
+    request<{ days: Record<string, NoteType[]>; moods: Record<string, string> }>(`/api/days?month=${month}`),
 
   notes: (date: string) => request<{ notes: Note[] }>(`/api/notes?date=${date}`),
 
