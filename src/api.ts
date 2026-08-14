@@ -1,11 +1,18 @@
-export type EntrySummary = { date: string; content: string; updated_at: string };
-export type Entry = { date: string; content: string; updated_at: string | null };
+export type NoteType = "text" | "audio" | "photo";
+
+export type Note = {
+  id: string;
+  date: string;
+  type: NoteType;
+  text: string;
+  mime: string | null;
+  mediaUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
+  const res = await fetch(path, init);
   if (res.status === 401) {
     window.location.href = "/login";
     throw new Error("unauthorized");
@@ -15,13 +22,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  listEntries: () => request<{ entries: EntrySummary[] }>("/api/entries"),
-  getEntry: (date: string) => request<{ entry: Entry }>(`/api/entries/${date}`),
-  saveEntry: (date: string, content: string) =>
-    request<{ ok: true }>(`/api/entries/${date}`, {
+  days: (month: string) => request<{ days: Record<string, number> }>(`/api/days?month=${month}`),
+
+  notes: (date: string) => request<{ notes: Note[] }>(`/api/notes?date=${date}`),
+
+  createTextNote: (date: string, text: string) => {
+    const form = new FormData();
+    form.set("date", date);
+    form.set("type", "text");
+    form.set("text", text);
+    return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
+  },
+
+  createMediaNote: (date: string, type: "audio" | "photo", file: Blob, filename: string) => {
+    const form = new FormData();
+    form.set("date", date);
+    form.set("type", type);
+    form.set("file", file, filename);
+    return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
+  },
+
+  updateText: (id: string, text: string) =>
+    request<{ note: Note }>(`/api/notes/${id}`, {
       method: "PUT",
-      body: JSON.stringify({ content }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
     }),
-  deleteEntry: (date: string) =>
-    request<{ ok: true }>(`/api/entries/${date}`, { method: "DELETE" }),
+
+  deleteNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}`, { method: "DELETE" }),
 };
