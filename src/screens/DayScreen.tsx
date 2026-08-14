@@ -393,7 +393,9 @@ function NoteCard({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept={note.type === "audio" ? "audio/*" : "image/*"}
+                accept={
+                  note.type === "audio" ? "audio/*" : note.type === "video" ? "video/*" : "image/*"
+                }
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -564,6 +566,10 @@ function NoteCard({
             />
           ))}
         </div>
+      )}
+
+      {note.type === "video" && note.mediaUrl && (
+        <video src={note.mediaUrl} controls className="mt-2 max-h-80 w-full rounded-ui bg-black" />
       )}
 
       {editing ? (

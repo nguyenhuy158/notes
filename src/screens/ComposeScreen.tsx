@@ -8,7 +8,7 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { cn } from "../ui/cn";
-import { ArrowLeft, Camera, MapPin, Mic, MicOff, Square, Type, X } from "lucide-react";
+import { ArrowLeft, Camera, MapPin, Mic, MicOff, Square, Type, Video, X } from "lucide-react";
 import { compressImage } from "../lib/compressImage";
 import { randomPrompt } from "../writingPrompts";
 import { isNetworkError, queueCreate, queueUpdate } from "../offlineQueue";
@@ -350,6 +350,113 @@ function PhotoComposer({ onSave, saving }: { onSave: (files: File[]) => void; sa
   );
 }
 
+const MAX_VIDEO_BYTES = 30 * 1024 * 1024; // khớp MAX_VIDEO_BYTES ở worker
+
+/** Trích 1 khung hình JPEG từ video (ở giây 0.1, tránh khung đen đầu tiên
+ * nhiều video hay có) — chỉ dùng để AI tạo caption, không lưu vào R2. Không
+ * decode được (định dạng lạ, trình duyệt không hỗ trợ) thì trả `null`, AI
+ * caption cho video đơn giản bị bỏ qua, không chặn lưu note. */
+function extractVideoFrame(file: File): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.src = URL.createObjectURL(file);
+    const cleanup = () => URL.revokeObjectURL(video.src);
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(0.1, video.duration || 0);
+    };
+    video.onseeked = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d")?.drawImage(video, 0, 0);
+      canvas.toBlob((blob) => {
+        cleanup();
+        resolve(blob);
+      }, "image/jpeg", 0.7);
+    };
+    video.onerror = () => {
+      cleanup();
+      resolve(null);
+    };
+  });
+}
+
+function VideoComposer({
+  onSave,
+  saving,
+}: {
+  onSave: (file: File, poster: Blob | null) => void;
+  saving: boolean;
+}) {
+  const { t } = useI18n();
+  const toast = useToast();
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  function onPick(picked: File | undefined) {
+    if (!picked) return;
+    if (picked.size > MAX_VIDEO_BYTES) {
+      toast.error(t.compose_video_too_large);
+      return;
+    }
+    setFile(picked);
+  }
+
+  async function save() {
+    if (!file) return;
+    const poster = await extractVideoFrame(file);
+    onSave(file, poster);
+  }
+
+  return (
+    <div className="space-y-3">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="video/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => onPick(e.target.files?.[0])}
+      />
+
+      {!file && (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="flex h-56 w-full flex-col items-center justify-center gap-2 rounded-ui border-2 border-dashed border-border text-fg-muted transition hover:bg-surface-muted"
+        >
+          <Video size={28} />
+          <span className="text-sm">{t.compose_video_pick}</span>
+        </button>
+      )}
+
+      {file && previewUrl && (
+        <div className="space-y-3">
+          <video src={previewUrl} controls className="max-h-80 w-full rounded-ui bg-black" />
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => setFile(null)}>
+              {t.compose_photo_retake}
+            </Button>
+            <Button className="flex-1" onClick={save} loading={saving}>
+              {t.compose_save}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LocationInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(Boolean(value));
@@ -422,12 +529,17 @@ export function ComposeScreen({
     { id: "text", label: t.compose_tab_text, icon: Type },
     { id: "audio", label: t.compose_tab_audio, icon: Mic },
     { id: "photo", label: t.compose_tab_photo, icon: Camera },
+    { id: "video", label: t.compose_tab_video, icon: Video },
   ];
 
-  async function saveMedia(type: "audio" | "photo", files: { blob: Blob; filename: string }[]) {
+  async function saveMedia(
+    type: "audio" | "photo" | "video",
+    files: { blob: Blob; filename: string }[],
+    poster?: Blob,
+  ) {
     setSaving(true);
     try {
-      await api.createMediaNote(date, type, files, mood, location, tags);
+      await api.createMediaNote(date, type, files, mood, location, tags, poster);
       toast.success(t.compose_saved);
       onSaved();
     } catch {
@@ -455,7 +567,7 @@ export function ComposeScreen({
       />
 
       <div className="px-4 py-4">
-        <div role="tablist" className="grid grid-cols-3 gap-1 rounded-ui border border-border p-1">
+        <div role="tablist" className="grid grid-cols-4 gap-1 rounded-ui border border-border p-1">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -497,6 +609,14 @@ export function ComposeScreen({
                   "photo",
                   files.map((f) => ({ blob: f, filename: f.name })),
                 )
+              }
+              saving={saving}
+            />
+          )}
+          {tab === "video" && (
+            <VideoComposer
+              onSave={(file, poster) =>
+                saveMedia("video", [{ blob: file, filename: file.name }], poster ?? undefined)
               }
               saving={saving}
             />

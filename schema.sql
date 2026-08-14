@@ -59,3 +59,36 @@ ALTER TABLE notes_entries ADD COLUMN extra_media TEXT;
 
 -- Địa điểm tự do (text người dùng tự gõ, không phải toạ độ GPS).
 ALTER TABLE notes_entries ADD COLUMN location TEXT;
+
+-- Thêm loại note "video". SQLite KHÔNG cho sửa CHECK constraint bằng ALTER
+-- TABLE (chỉ thêm/xoá/đổi tên cột) — phải build lại bảng theo đúng quy trình
+-- SQLite khuyến nghị: tạo bảng mới cùng schema (CHECK mới) + INDEX, copy dữ
+-- liệu qua, xoá bảng cũ, đổi tên bảng mới. Không có FK nào trỏ VÀO
+-- notes_entries nên an toàn đổi tên. CHỈ chạy khối này MỘT LẦN.
+CREATE TABLE notes_entries_new (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES notes_users(id),
+    date TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('text', 'audio', 'photo', 'video')),
+    text TEXT NOT NULL DEFAULT '',
+    media_key TEXT,
+    mime TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    mood TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    tags TEXT,
+    share_token TEXT,
+    deleted_at TEXT,
+    extra_media TEXT,
+    location TEXT
+);
+INSERT INTO notes_entries_new SELECT
+    id, user_id, date, type, text, media_key, mime, created_at, updated_at,
+    mood, sort_order, pinned, tags, share_token, deleted_at, extra_media, location
+FROM notes_entries;
+DROP TABLE notes_entries;
+ALTER TABLE notes_entries_new RENAME TO notes_entries;
+CREATE INDEX IF NOT EXISTS idx_notes_entries_user_date ON notes_entries(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_notes_entries_share_token ON notes_entries(share_token);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
-import { Camera, Mic, PenLine, Search } from "lucide-react";
+import { Camera, Mic, PenLine, Search, Video } from "lucide-react";
 import { api, MOODS } from "../api";
 import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
@@ -22,6 +22,7 @@ const TYPE_ICON: Record<NoteType, typeof PenLine> = {
   text: PenLine,
   audio: Mic,
   photo: Camera,
+  video: Video,
 };
 
 function pastMonths(count: number): string[] {
@@ -146,6 +147,7 @@ export function TimelineScreen({
     { id: "text", label: t.compose_tab_text, icon: PenLine },
     { id: "audio", label: t.compose_tab_audio, icon: Mic },
     { id: "photo", label: t.compose_tab_photo, icon: Camera },
+    { id: "video", label: t.compose_tab_video, icon: Video },
   ];
 
   return (

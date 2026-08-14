@@ -137,6 +137,21 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   `visibilitychange`, ghi mốc thời gian vào `sessionStorage` lúc tab ẩn, so
   sánh lúc hiện lại. Không dùng `setInterval` đếm ngược nền — tốn pin, và
   đằng nào cũng chỉ cần biết lúc quay lại có vượt ngưỡng không.
+- **Loại note "video"**: thêm vào `notes_entries.type` (`'text'|'audio'|
+  'photo'|'video'`) — cột này có CHECK constraint, SQLite KHÔNG cho ALTER
+  sửa CHECK, phải rebuild cả bảng (xem khối cuối `schema.sql`, chỉ chạy 1
+  lần). Compose video CỐ TÌNH dùng file picker (`accept="video/*"
+  capture="environment"`) giống Photo, KHÔNG dùng `MediaRecorder` trực tiếp
+  như Audio — quay video qua `MediaRecorder` phức tạp/dễ vỡ hơn nhiều (phải
+  tự vẽ preview camera sống, xin quyền camera+mic cùng lúc), trong khi
+  `<input type=file capture>` giao việc quay cho app camera gốc của máy, ổn
+  định hơn hẳn (đúng bài học từ lỗi ghi âm ở trên). Giới hạn 30MB
+  (`MAX_VIDEO_BYTES`, khớp cả 2 phía client/worker).
+- **AI tự tạo caption cho ảnh/video** (`@cf/unum/uform-gen2-qwen-500m`,
+  khác model Whisper dùng cho audio): video không tự trích được frame ở
+  server (Workers không có ffmpeg/decode video) — client tự trích 1 frame
+  qua `<video>` + `<canvas>` (`extractVideoFrame` trong `ComposeScreen.tsx`),
+  gửi kèm field `poster` CHỈ để AI đọc rồi bỏ, KHÔNG lưu vào R2.
 
 ## Bảo mật: mime allow-list cho media
 

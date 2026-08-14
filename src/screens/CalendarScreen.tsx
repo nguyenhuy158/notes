@@ -4,7 +4,7 @@ import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
 import { computeLongestStreak, monthString, parseDate, toDateString, todayString } from "../date";
 import { cn } from "../ui/cn";
-import { Camera, CalendarDays, ChevronLeft, ChevronRight, Grid3x3, Mic, PenLine, X } from "lucide-react";
+import { Camera, CalendarDays, ChevronLeft, ChevronRight, Grid3x3, Mic, PenLine, Video, X } from "lucide-react";
 import { MoodEmoji } from "../moodEmojis";
 import { MOODS } from "../api";
 
@@ -152,6 +152,7 @@ const TYPE_ICON: Record<NoteType, typeof PenLine> = {
   text: PenLine,
   audio: Mic,
   photo: Camera,
+  video: Video,
 };
 
 function firstWeekdayOffset(year: number, month: number): number {
@@ -194,7 +195,13 @@ function OnThisDay({ onOpenDay }: { onOpenDay: (date: string) => void }) {
           >
             <span className="block text-xs font-medium text-primary">{t.on_this_day_title(yearsAgo)}</span>
             <span className="mt-1 block line-clamp-3 text-sm text-fg">
-              {note.type === "text" ? note.text : note.type === "audio" ? "🎙️" : "📷"}
+              {note.type === "text"
+                ? note.text
+                : note.type === "audio"
+                  ? "🎙️"
+                  : note.type === "video"
+                    ? "🎬"
+                    : "📷"}
             </span>
           </button>
         );

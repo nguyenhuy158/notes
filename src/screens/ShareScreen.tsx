@@ -71,6 +71,10 @@ export function ShareScreen({ token }: { token: string }) {
               </div>
             )}
 
+            {note.type === "video" && note.mediaUrl && (
+              <video src={note.mediaUrl} controls className="mt-3 max-h-96 w-full rounded-ui bg-black" />
+            )}
+
             {note.type !== "text" && note.text && (
               <p className="mt-2 whitespace-pre-wrap text-sm text-fg">{note.text}</p>
             )}

@@ -1,4 +1,4 @@
-export type NoteType = "text" | "audio" | "photo";
+export type NoteType = "text" | "audio" | "photo" | "video";
 
 export const MOODS = ["😄", "🙂", "😐", "😔", "😡", "😴", "🥳", "😰"] as const;
 export type Mood = (typeof MOODS)[number];
@@ -56,19 +56,23 @@ export const api = {
     return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
   },
 
-  // `files`: 1 file cho audio, 1-10 file cho photo (gallery nhiều ảnh/note).
+  // `files`: 1 file cho audio/video, 1-10 file cho photo (gallery nhiều
+  // ảnh/note). `poster` (chỉ video): 1 khung hình JPEG trích từ video ở
+  // client, dùng để AI tạo caption — KHÔNG được lưu, chỉ đọc rồi bỏ ở worker.
   createMediaNote: (
     date: string,
-    type: "audio" | "photo",
+    type: "audio" | "photo" | "video",
     files: { blob: Blob; filename: string }[],
     mood: Mood | null,
     location: string,
     tags: string[] = [],
+    poster?: Blob,
   ) => {
     const form = new FormData();
     form.set("date", date);
     form.set("type", type);
     for (const f of files) form.append("file", f.blob, f.filename);
+    if (poster) form.set("poster", poster, "poster.jpg");
     if (mood) form.set("mood", mood);
     if (location) form.set("location", location);
     if (tags.length) form.set("tags", tags.join(","));

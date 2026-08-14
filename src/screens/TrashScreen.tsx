@@ -107,6 +107,9 @@ export function TrashScreen({ onBack }: { onBack: () => void }) {
                   ))}
                 </div>
               )}
+              {note.type === "video" && note.mediaUrl && (
+                <video src={note.mediaUrl} controls className="mt-2 max-h-60 w-full rounded-ui bg-black" />
+              )}
             </div>
           ))
         )}

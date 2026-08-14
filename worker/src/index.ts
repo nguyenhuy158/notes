@@ -13,7 +13,7 @@ type Variables = {
   userId: string;
 };
 
-type NoteType = "text" | "audio" | "photo";
+type NoteType = "text" | "audio" | "photo" | "video";
 
 type NoteRow = {
   id: string;
@@ -51,8 +51,12 @@ const ALLOWED_MIME = new Set([
   "audio/mp4",
   "audio/webm",
   "audio/ogg",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
 ]);
-const NOTE_TYPES: NoteType[] = ["text", "audio", "photo"];
+const MAX_VIDEO_BYTES = 30 * 1024 * 1024; // 30MB — video quay điện thoại vài chục giây, đủ rộng nhưng vẫn giới hạn để tránh tốn R2 vô tội vạ.
+const NOTE_TYPES: NoteType[] = ["text", "audio", "photo", "video"];
 
 // MediaRecorder trả mime kèm codec (vd "audio/webm;codecs=opus",
 // "audio/mp4;codecs=mp4a.40.2") — so khớp Set nguyên chuỗi sẽ luôn trượt vì
@@ -370,20 +374,26 @@ app.post("/api/notes", async (c) => {
   const files = (Array.isArray(filesRaw) ? filesRaw : filesRaw ? [filesRaw] : []).filter(
     (f): f is File => f instanceof File
   );
+  // Frame đại diện của video (canvas client tự trích) — CHỈ dùng để AI tạo
+  // caption, không lưu vào R2 (đỡ tốn dung lượng cho 1 ảnh chỉ dùng thoáng qua).
+  const posterFrame = form.poster instanceof File ? form.poster : null;
   const moodRaw = typeof form.mood === "string" ? form.mood : "";
   const mood = MOODS.has(moodRaw) ? moodRaw : null;
   const tags = sanitizeTags(typeof form.tags === "string" ? form.tags.split(",") : []);
+  const needsFile = type === "audio" || type === "photo" || type === "video";
 
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   if (!NOTE_TYPES.includes(type)) return c.json({ error: "invalid type" }, 400);
   if (type === "text" && !text.trim()) return c.json({ error: "empty text" }, 400);
-  if ((type === "audio" || type === "photo") && files.length === 0)
-    return c.json({ error: "missing file" }, 400);
-  if (type === "audio" && files.length > 1) return c.json({ error: "audio note takes 1 file" }, 400);
+  if (needsFile && files.length === 0) return c.json({ error: "missing file" }, 400);
+  if ((type === "audio" || type === "video") && files.length > 1)
+    return c.json({ error: `${type} note takes 1 file` }, 400);
   if (files.length > 1 + MAX_EXTRA_PHOTOS) return c.json({ error: "too many photos" }, 400);
+  if (type === "video" && files[0]?.size > MAX_VIDEO_BYTES)
+    return c.json({ error: "video too large" }, 400);
   // Chặn mime giả mạo (vd "text/html") lọt vào R2 rồi bị trình duyệt render như
   // trang gốc khi GET /api/media trả lại — chỉ nhận đúng loại file cho từng type.
-  if ((type === "audio" || type === "photo") && files.some((f) => !isAllowedMime(f.type)))
+  if (needsFile && files.some((f) => !isAllowedMime(f.type)))
     return c.json({ error: "invalid file type" }, 400);
 
   const id = crypto.randomUUID();
@@ -418,6 +428,26 @@ app.post("/api/notes", async (c) => {
         if (result.text?.trim()) finalText = result.text.trim();
       } catch (err) {
         console.error("Whisper transcribe failed", err);
+      }
+    }
+
+    // Tự tạo caption cho ảnh/video (vision model) khi user không tự gõ —
+    // video dùng frame đại diện client tự trích (poster), không tự trích
+    // frame ở server vì Workers không có ffmpeg/decode video. Lỗi ở bước này
+    // KHÔNG chặn lưu note, giống Whisper ở trên.
+    if ((type === "photo" || type === "video") && !text.trim()) {
+      const captionBytes = type === "photo" ? bytes : posterFrame ? await posterFrame.arrayBuffer() : null;
+      if (captionBytes) {
+        try {
+          const result = await c.env.AI.run("@cf/unum/uform-gen2-qwen-500m", {
+            image: [...new Uint8Array(captionBytes)],
+            prompt: "Describe this image in one short sentence.",
+            max_tokens: 40,
+          });
+          if (result.description?.trim()) finalText = result.description.trim();
+        } catch (err) {
+          console.error("Caption model failed", err);
+        }
       }
     }
   }
@@ -647,7 +677,7 @@ app.put("/api/notes/:id/media", async (c) => {
   const userId = c.get("userId");
 
   const existing = await c.env.DB.prepare(
-    "SELECT * FROM notes_entries WHERE id = ? AND user_id = ? AND type IN ('audio', 'photo')"
+    "SELECT * FROM notes_entries WHERE id = ? AND user_id = ? AND type IN ('audio', 'photo', 'video')"
   )
     .bind(id, userId)
     .first<NoteRow>();
@@ -809,17 +839,20 @@ app.get("/api/export", async (c) => {
     md += `## ${date}\n\n`;
     for (const note of notes) {
       const time = note.created_at.slice(11, 16);
+      const caption = note.text ? ` — ${note.text}` : "";
       if (note.type === "text") {
         md += `- **${time}** ${note.text}\n`;
       } else if (note.type === "audio") {
-        md += `- **${time}** [audio](${origin}/api/media/${note.id})\n`;
+        md += `- **${time}** [audio](${origin}/api/media/${note.id})${caption}\n`;
+      } else if (note.type === "video") {
+        md += `- **${time}** [video](${origin}/api/media/${note.id})${caption}\n`;
       } else {
         const extraCount = parseExtraMedia(note.extra_media).length;
         const photos = [
           `${origin}/api/media/${note.id}`,
           ...Array.from({ length: extraCount }, (_, i) => `${origin}/api/media/${note.id}?slot=${i + 1}`),
         ];
-        md += `- **${time}** ${photos.map((url) => `![photo](${url})`).join(" ")}\n`;
+        md += `- **${time}** ${photos.map((url) => `![photo](${url})`).join(" ")}${caption}\n`;
       }
     }
     md += "\n";
