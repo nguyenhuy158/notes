@@ -23,6 +23,9 @@ type NoteRow = {
   mime: string | null;
   mood: string | null;
   sort_order: number;
+  pinned: number;
+  tags: string | null;
+  share_token: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -46,6 +49,26 @@ const ALLOWED_MIME = new Set([
   "audio/ogg",
 ]);
 const NOTE_TYPES: NoteType[] = ["text", "audio", "photo"];
+const MAX_TAGS = 5;
+const MAX_TAG_LENGTH = 24;
+
+function parseTags(raw: string | null): string[] {
+  return raw ? raw.split(",").filter(Boolean) : [];
+}
+
+// Cho phép chữ/số/khoảng trắng unicode (tên tag tiếng Việt có dấu), chặn dấu
+// phẩy (ký tự phân tách khi lưu) và ký tự điều khiển.
+function sanitizeTags(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  for (const raw of input) {
+    if (typeof raw !== "string") continue;
+    const tag = raw.trim().replace(/,/g, "").slice(0, MAX_TAG_LENGTH);
+    if (tag) seen.add(tag);
+    if (seen.size >= MAX_TAGS) break;
+  }
+  return [...seen];
+}
 
 function toNoteJson(row: NoteRow) {
   return {
@@ -55,6 +78,9 @@ function toNoteJson(row: NoteRow) {
     text: row.text,
     mime: row.mime,
     mood: row.mood,
+    pinned: row.pinned === 1,
+    tags: parseTags(row.tags),
+    shareToken: row.share_token,
     mediaUrl: row.media_key ? `/api/media/${row.id}?v=${encodeURIComponent(row.updated_at)}` : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -105,15 +131,20 @@ app.get("/api/on-this-day", async (c) => {
   return c.json({ notes: results.map(toNoteJson) });
 });
 
-// Tìm trong nội dung note văn bản. Không tìm audio/photo vì không có text.
+// Tìm trong nội dung note văn bản hoặc trong tags (mọi loại note đều có thể
+// gắn tag, kể cả audio/photo — tìm theo tag giúp lọc được cả note không có
+// text).
 app.get("/api/search", async (c) => {
   const q = (c.req.query("q") ?? "").trim();
   if (!q) return c.json({ notes: [] });
   const userId = c.get("userId");
+  const like = `%${q.replace(/[%_\\]/g, "\\$&")}%`;
   const { results } = await c.env.DB.prepare(
-    "SELECT * FROM notes_entries WHERE user_id = ? AND type = 'text' AND text LIKE ? ESCAPE '\\' ORDER BY date DESC LIMIT 50"
+    `SELECT * FROM notes_entries
+     WHERE user_id = ? AND ((type = 'text' AND text LIKE ? ESCAPE '\\') OR tags LIKE ? ESCAPE '\\')
+     ORDER BY date DESC LIMIT 50`
   )
-    .bind(userId, `%${q.replace(/[%_\\]/g, "\\$&")}%`)
+    .bind(userId, like, like)
     .all<NoteRow>();
   return c.json({ notes: results.map(toNoteJson) });
 });
@@ -123,7 +154,7 @@ app.get("/api/notes", async (c) => {
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    "SELECT * FROM notes_entries WHERE user_id = ? AND date = ? ORDER BY sort_order ASC, created_at ASC"
+    "SELECT * FROM notes_entries WHERE user_id = ? AND date = ? ORDER BY pinned DESC, sort_order ASC, created_at ASC"
   )
     .bind(userId, date)
     .all<NoteRow>();
@@ -195,19 +226,20 @@ app.put("/api/notes/reorder", async (c) => {
   return c.json({ ok: true });
 });
 
+// Sửa nội dung chữ của note. Với type "text" đây là nội dung chính (không
+// được rỗng); với "audio"/"photo" đây là caption đi kèm (được phép rỗng —
+// caption là tuỳ chọn).
 app.put("/api/notes/:id", async (c) => {
   const id = c.req.param("id");
   const userId = c.get("userId");
   const body = await c.req.json<{ text: string }>();
   const text = typeof body.text === "string" ? body.text : "";
-  if (!text.trim()) return c.json({ error: "empty text" }, 400);
 
-  const existing = await c.env.DB.prepare(
-    "SELECT * FROM notes_entries WHERE id = ? AND user_id = ? AND type = 'text'"
-  )
+  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
     .bind(id, userId)
     .first<NoteRow>();
   if (!existing) return c.json({ error: "not found" }, 404);
+  if (existing.type === "text" && !text.trim()) return c.json({ error: "empty text" }, 400);
 
   await c.env.DB.prepare(
     "UPDATE notes_entries SET text = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
@@ -217,6 +249,81 @@ app.put("/api/notes/:id", async (c) => {
 
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
   return c.json({ note: toNoteJson(row!) });
+});
+
+// Ghim note lên đầu ngày, không phụ thuộc sort_order.
+app.put("/api/notes/:id/pin", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const body = await c.req.json<{ pinned: boolean }>();
+
+  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  await c.env.DB.prepare(
+    "UPDATE notes_entries SET pinned = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
+  )
+    .bind(body.pinned ? 1 : 0, id)
+    .run();
+
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
+  return c.json({ note: toNoteJson(row!) });
+});
+
+// Gắn nhãn tự do cho note (tối đa 5, mỗi nhãn tối đa 24 ký tự) — dùng lọc/tìm
+// ở Timeline (xem /api/search) và giúp phân loại note không có text.
+app.put("/api/notes/:id/tags", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const body = await c.req.json<{ tags: unknown }>();
+  const tags = sanitizeTags(body.tags);
+
+  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  await c.env.DB.prepare(
+    "UPDATE notes_entries SET tags = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
+  )
+    .bind(tags.length ? tags.join(",") : null, id)
+    .run();
+
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
+  return c.json({ note: toNoteJson(row!) });
+});
+
+// Bật/tắt chia sẻ công khai (xem-only, không cần đăng nhập) qua /share/:token.
+// POST tạo token mới nếu chưa có (giữ nguyên token cũ nếu đã bật — tránh phá
+// link đã gửi cho người khác); DELETE thu hồi.
+app.post("/api/notes/:id/share", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  const token = existing.share_token ?? crypto.randomUUID();
+  if (!existing.share_token) {
+    await c.env.DB.prepare("UPDATE notes_entries SET share_token = ? WHERE id = ?").bind(token, id).run();
+  }
+
+  return c.json({ shareToken: token });
+});
+
+app.delete("/api/notes/:id/share", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  await c.env.DB.prepare("UPDATE notes_entries SET share_token = NULL WHERE id = ?").bind(id).run();
+  return c.json({ ok: true });
 });
 
 // Sửa cảm xúc sau khi tạo — áp dụng mọi loại note (text/audio/photo), khác
@@ -401,6 +508,46 @@ app.get("/api/stats", async (c) => {
   } while (cursor);
 
   return c.json({ noteCount: countRow?.count ?? 0, mediaBytes: totalBytes });
+});
+
+// Xem note đã chia sẻ — công khai, KHÔNG qua middleware xác thực /api/* (path
+// này không bắt đầu bằng /api/). Chỉ lộ đúng 1 note khớp token, không phải
+// toàn bộ dữ liệu user.
+app.get("/share/:token", async (c) => {
+  const token = c.req.param("token");
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE share_token = ?")
+    .bind(token)
+    .first<NoteRow>();
+  if (!row) return c.json({ error: "not found" }, 404);
+
+  const note = toNoteJson(row);
+  return c.json({
+    note: {
+      ...note,
+      mediaUrl: row.media_key ? `/share/${token}/media` : null,
+    },
+  });
+});
+
+app.get("/share/:token/media", async (c) => {
+  const token = c.req.param("token");
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE share_token = ?")
+    .bind(token)
+    .first<NoteRow>();
+  if (!row?.media_key) return c.json({ error: "not found" }, 404);
+
+  const object = await c.env.MEDIA.get(row.media_key);
+  if (!object) return c.json({ error: "not found" }, 404);
+
+  const safeType = row.mime && ALLOWED_MIME.has(row.mime) ? row.mime : "application/octet-stream";
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": safeType,
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": "inline",
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
 });
 
 app.get("/login", (c) => {

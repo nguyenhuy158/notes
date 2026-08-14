@@ -10,7 +10,22 @@ import { EmptyState, LoadingState } from "../ui/states";
 import { StickerGhost } from "../stickers";
 import { useToast } from "../ui/Toast";
 import { Fab } from "../ui/BottomNav";
-import { ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { cn } from "../ui/cn";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Pin,
+  PinOff,
+  Plus,
+  RefreshCw,
+  Share2,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
 
 const AUTOSAVE_DELAY_MS = 1500;
 
@@ -45,7 +60,8 @@ function NoteCard({
   noteRef.current = note;
 
   async function save() {
-    if (!draftRef.current.trim() || draftRef.current === noteRef.current.text) return;
+    if (draftRef.current === noteRef.current.text) return;
+    if (note.type === "text" && !draftRef.current.trim()) return;
     setBusy(true);
     try {
       const r = await api.updateText(noteRef.current.id, draftRef.current);
@@ -115,6 +131,69 @@ function NoteCard({
     }
   }
 
+  async function togglePin() {
+    try {
+      const r = await api.togglePin(note.id, !note.pinned);
+      onSaved(r.note);
+    } catch {
+      toast.error(t.day_save_failed);
+    }
+  }
+
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagsDraft, setTagsDraft] = useState(note.tags.join(", "));
+
+  async function saveTags() {
+    const tags = tagsDraft
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    try {
+      const r = await api.updateTags(note.id, tags);
+      onSaved(r.note);
+      setTagsOpen(false);
+    } catch {
+      toast.error(t.day_tags_save_failed);
+    }
+  }
+
+  const [sharePanelOpen, setSharePanelOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  async function shareNote() {
+    setSharePanelOpen(true);
+    if (note.shareToken) return;
+    setSharing(true);
+    try {
+      const r = await api.enableShare(note.id);
+      onSaved({ ...note, shareToken: r.shareToken });
+      await navigator.clipboard.writeText(`${window.location.origin}/s/${r.shareToken}`);
+      toast.success(t.day_share_on);
+    } catch {
+      toast.error(t.day_share_failed);
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function copyShareLink() {
+    if (!note.shareToken) return;
+    await navigator.clipboard.writeText(`${window.location.origin}/s/${note.shareToken}`);
+    toast.success(t.day_share_on);
+  }
+
+  async function disableShare() {
+    try {
+      await api.disableShare(note.id);
+      onSaved({ ...note, shareToken: null });
+      toast.success(t.day_share_off);
+    } catch {
+      toast.error(t.day_share_failed);
+    } finally {
+      setSharePanelOpen(false);
+    }
+  }
+
   return (
     <div className="rounded-ui border border-border bg-surface p-3">
       <div className="flex items-center justify-between">
@@ -130,6 +209,33 @@ function NoteCard({
           {formatTime(note.createdAt)}
         </span>
         <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={togglePin}
+            aria-label={note.pinned ? t.day_unpin : t.day_pin}
+            className={cn(
+              "grid h-10 w-10 place-items-center rounded-ui transition hover:bg-surface-muted",
+              note.pinned ? "text-primary" : "text-fg-muted",
+            )}
+          >
+            {note.pinned ? <PinOff size={16} /> : <Pin size={16} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTagsOpen((v) => !v)}
+            aria-label={t.day_tags}
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            <Tag size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={shareNote}
+            aria-label={t.day_share}
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            <Share2 size={16} />
+          </button>
           {canMoveUp && (
             <button
               type="button"
@@ -185,6 +291,63 @@ function NoteCard({
         </div>
       </div>
 
+      {tagsOpen && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            autoFocus
+            value={tagsDraft}
+            onChange={(e) => setTagsDraft(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && saveTags()}
+            placeholder={t.day_tags_placeholder}
+            className="min-w-0 flex-1 rounded-ui border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <Button size="sm" onClick={saveTags}>
+            {t.day_cancel}
+          </Button>
+        </div>
+      )}
+
+      {!tagsOpen && note.tags.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {note.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted"
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {sharePanelOpen && (
+        <div className="mt-2 flex items-center gap-2 rounded-ui bg-surface-muted p-2">
+          <Share2 size={14} className="shrink-0 text-fg-muted" />
+          <span className="min-w-0 flex-1 truncate text-xs text-fg-muted">
+            {sharing
+              ? t.share_loading
+              : note.shareToken
+                ? `${window.location.origin}/s/${note.shareToken}`
+                : ""}
+          </span>
+          {note.shareToken && !sharing && (
+            <>
+              <Button size="sm" variant="ghost" onClick={copyShareLink}>
+                {t.day_share}
+              </Button>
+              <button
+                type="button"
+                onClick={disableShare}
+                aria-label={t.day_share_off}
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-ui text-fg-muted transition hover:bg-surface hover:text-danger"
+              >
+                <X size={14} />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {moodPickerOpen && (
         <div className="mt-2 flex flex-wrap gap-1">
           {MOODS.map((m) => (
@@ -210,37 +373,47 @@ function NoteCard({
         </div>
       )}
 
-      {note.type === "text" &&
-        (editing ? (
-          <div className="mt-2 space-y-2">
-            <Textarea autoFocus value={draft} onChange={(e) => onDraftChange(e.target.value)} rows={4} />
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="ghost" onClick={closeEditor}>
-                {t.day_cancel}
-              </Button>
-              <span className="text-xs text-fg-muted">
-                {busy
-                  ? t.day_saving
-                  : dirty
-                    ? t.day_unsaved
-                    : savedAt
-                      ? t.day_saved_at(formatTime(savedAt))
-                      : t.day_saved}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <p onClick={() => setEditing(true)} className="mt-1 whitespace-pre-wrap text-sm text-fg">
-            {note.text}
-          </p>
-        ))}
-
       {note.type === "audio" && note.mediaUrl && (
         <audio controls src={note.mediaUrl} className="mt-2 w-full" />
       )}
 
       {note.type === "photo" && note.mediaUrl && (
         <img src={note.mediaUrl} alt="" className="mt-2 max-h-80 w-full rounded-ui object-cover" />
+      )}
+
+      {editing ? (
+        <div className="mt-2 space-y-2">
+          <Textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => onDraftChange(e.target.value)}
+            rows={note.type === "text" ? 4 : 2}
+          />
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={closeEditor}>
+              {t.day_cancel}
+            </Button>
+            <span className="text-xs text-fg-muted">
+              {busy
+                ? t.day_saving
+                : dirty
+                  ? t.day_unsaved
+                  : savedAt
+                    ? t.day_saved_at(formatTime(savedAt))
+                    : t.day_saved}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <p
+          onClick={() => setEditing(true)}
+          className={cn(
+            "mt-1 whitespace-pre-wrap text-sm",
+            note.text ? "text-fg" : "text-fg-muted",
+          )}
+        >
+          {note.text || (note.type !== "text" ? t.day_add_caption : "")}
+        </p>
       )}
     </div>
   );

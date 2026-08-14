@@ -10,6 +10,9 @@ export type Note = {
   text: string;
   mime: string | null;
   mood: string | null;
+  pinned: boolean;
+  tags: string[];
+  shareToken: string | null;
   mediaUrl: string | null;
   createdAt: string;
   updatedAt: string;
@@ -80,6 +83,32 @@ export const api = {
     const form = new FormData();
     form.set("file", file, filename);
     return request<{ note: Note }>(`/api/notes/${id}/media`, { method: "PUT", body: form });
+  },
+
+  togglePin: (id: string, pinned: boolean) =>
+    request<{ note: Note }>(`/api/notes/${id}/pin`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned }),
+    }),
+
+  updateTags: (id: string, tags: string[]) =>
+    request<{ note: Note }>(`/api/notes/${id}/tags`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    }),
+
+  enableShare: (id: string) => request<{ shareToken: string }>(`/api/notes/${id}/share`, { method: "POST" }),
+
+  disableShare: (id: string) => request<{ ok: true }>(`/api/notes/${id}/share`, { method: "DELETE" }),
+
+  // Public, không cần đăng nhập — dùng cho trang xem note đã chia sẻ.
+  getSharedNote: async (token: string): Promise<Note | null> => {
+    const res = await fetch(`/share/${token}`);
+    if (!res.ok) return null;
+    const body = (await res.json()) as { note: Note };
+    return body.note;
   },
 
   stats: () => request<{ noteCount: number; mediaBytes: number }>("/api/stats"),

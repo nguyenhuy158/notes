@@ -6,6 +6,7 @@ import { monthString, parseDate, todayString } from "../date";
 import { cn } from "../ui/cn";
 import { Camera, CalendarDays, ChevronLeft, ChevronRight, Mic, PenLine, X } from "lucide-react";
 import { MoodEmoji } from "../moodEmojis";
+import { MOODS } from "../api";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
@@ -281,6 +282,24 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
           );
         })}
       </div>
+
+      {Object.keys(moods).length > 0 && (
+        <div className="mt-4 rounded-ui border border-border bg-surface p-3">
+          <p className="mb-2 text-xs font-medium text-fg-muted">{t.calendar_mood_stats_title}</p>
+          <div className="flex flex-wrap gap-3">
+            {MOODS.map((m) => {
+              const count = Object.values(moods).filter((mood) => mood === m).length;
+              if (count === 0) return null;
+              return (
+                <span key={m} className="flex items-center gap-1">
+                  <MoodEmoji mood={m} size={20} />
+                  <span className="text-xs font-medium tabular text-fg-muted">{count}</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {pickerOpen && (
         <MonthYearPicker

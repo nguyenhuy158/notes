@@ -5,6 +5,7 @@ import { ComposeScreen } from "./screens/ComposeScreen";
 import { DayScreen } from "./screens/DayScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { ShareScreen } from "./screens/ShareScreen";
 import { TimelineScreen } from "./screens/TimelineScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
 import { Calendar, Settings, History } from "lucide-react";
@@ -14,7 +15,16 @@ type Tab = "calendar" | "timeline" | "settings";
 type Screen = { name: "root" } | { name: "day"; date: string } | { name: "compose"; date: string };
 type Auth = { status: "checking" } | { status: "anon" } | { status: "authed" };
 
+const SHARE_PATH_RE = /^\/s\/([^/]+)/;
+
 export function App() {
+  // Route /s/:token phải xử lý TRƯỚC mọi hook khác — không đăng nhập vẫn xem
+  // được, và app không dùng URL router thật nên đọc thẳng location.pathname.
+  // An toàn về thứ tự hook vì pathname không đổi giữa các lần render của
+  // cùng 1 lần mount (chỉ đổi khi load lại trang).
+  const shareMatch = SHARE_PATH_RE.exec(window.location.pathname);
+  if (shareMatch) return <ShareScreen token={shareMatch[1]} />;
+
   const { t } = useI18n();
   const [auth, setAuth] = useState<Auth>({ status: "checking" });
   const [tab, setTab] = useState<Tab>("calendar");

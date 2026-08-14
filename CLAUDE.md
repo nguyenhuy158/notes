@@ -47,6 +47,18 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   tại đây an toàn, không ảnh hưởng chia-keo/sso/app khác.
 - **Nút icon-only tối thiểu 40×40px** (`h-10 w-10`), không dùng `h-8 w-8`
   nhỏ hơn — chuẩn touch target mobile, tránh bấm nhầm trên màn cảm ứng.
+- **Ghim/nhãn/chia sẻ note** (`pinned`, `tags`, `share_token` trong
+  `notes_entries`): ghim sort trước ở SQL (`ORDER BY pinned DESC, ...`), tags
+  lưu dạng chuỗi `"tag1,tag2"` (không tách bảng vì tối đa 5 tag/note). Chia sẻ
+  qua route `/share/:token` + `/share/:token/media` — cố tình đặt NGOÀI
+  `/api/*` để không dính middleware xác thực (route public, không cần login).
+  Trang xem chia sẻ ở client là `/s/:token` (khác `/share/` phía server), đọc
+  thẳng `window.location.pathname` trong `App.tsx` — app không có URL router
+  thật, đây là route đặc biệt duy nhất được xử lý trước mọi hook khác (an
+  toàn vì pathname không đổi giữa các lần render cùng 1 mount).
+- **Sửa caption cho audio/photo**: `PUT /api/notes/:id` giờ áp dụng mọi loại
+  note, không chỉ `text` — audio/photo cho phép caption rỗng (tuỳ chọn), chỉ
+  note gốc `type = 'text'` mới bắt buộc không rỗng.
 
 ## Bảo mật: mime allow-list cho media
 

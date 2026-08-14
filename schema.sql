@@ -34,3 +34,16 @@ ALTER TABLE notes_entries ADD COLUMN mood TEXT;
 -- created_at cũ cho note có sẵn. Chỉ ORDER BY khi có ít nhất 1 note đã đổi
 -- vị trí, ngày mới toanh vẫn theo created_at ASC vì mọi note đều = 0.
 ALTER TABLE notes_entries ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
+
+-- Ghim note lên đầu ngày (không phụ thuộc sort_order kéo tay).
+ALTER TABLE notes_entries ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+
+-- Nhãn tự do, lưu dạng "tag1,tag2" (không chứa dấu phẩy trong từng tag).
+-- Đơn giản hoá: không tách bảng riêng vì số tag/note rất ít (tối đa 5).
+ALTER TABLE notes_entries ADD COLUMN tags TEXT;
+
+-- Token chia sẻ note ra ngoài (xem-only, không cần đăng nhập). NULL = chưa
+-- bật chia sẻ. Route public /share/:token và /share/:token/media (worker/src/
+-- index.ts) đọc theo token này, KHÔNG đi qua middleware xác thực /api/*.
+ALTER TABLE notes_entries ADD COLUMN share_token TEXT;
+CREATE INDEX IF NOT EXISTS idx_notes_entries_share_token ON notes_entries(share_token);
