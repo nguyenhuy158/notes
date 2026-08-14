@@ -28,6 +28,17 @@ const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MONTH_RE = /^\d{4}-\d{2}$/;
+
+const ALLOWED_MIME = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/webm",
+  "audio/ogg",
+]);
 const NOTE_TYPES: NoteType[] = ["text", "audio", "photo"];
 
 function toNoteJson(row: NoteRow) {
@@ -90,6 +101,10 @@ app.post("/api/notes", async (c) => {
   if (!NOTE_TYPES.includes(type)) return c.json({ error: "invalid type" }, 400);
   if (type === "text" && !text.trim()) return c.json({ error: "empty text" }, 400);
   if ((type === "audio" || type === "photo") && !file) return c.json({ error: "missing file" }, 400);
+  // Chặn mime giả mạo (vd "text/html") lọt vào R2 rồi bị trình duyệt render như
+  // trang gốc khi GET /api/media trả lại — chỉ nhận đúng loại file cho từng type.
+  if ((type === "audio" || type === "photo") && !ALLOWED_MIME.has(file!.type))
+    return c.json({ error: "invalid file type" }, 400);
 
   const id = crypto.randomUUID();
   let mediaKey: string | null = null;
@@ -97,9 +112,9 @@ app.post("/api/notes", async (c) => {
 
   if (file) {
     mediaKey = `${userId}/${id}`;
-    mime = file.type || null;
+    mime = file.type;
     await c.env.MEDIA.put(mediaKey, await file.arrayBuffer(), {
-      httpMetadata: { contentType: mime ?? undefined },
+      httpMetadata: { contentType: mime },
     });
   }
 
@@ -162,9 +177,16 @@ app.get("/api/media/:id", async (c) => {
   const object = await c.env.MEDIA.get(row.media_key);
   if (!object) return c.json({ error: "not found" }, 404);
 
+  // Chỉ tin content-type nếu đúng dạng ảnh/âm thanh đã kiểm khi upload; mọi
+  // giá trị khác (kể cả dữ liệu cũ lỡ lọt qua) rơi về octet-stream để trình
+  // duyệt tải xuống thay vì render — chặn XSS qua content-type phản chiếu.
+  const safeType = row.mime && ALLOWED_MIME.has(row.mime) ? row.mime : "application/octet-stream";
+
   return new Response(object.body, {
     headers: {
-      "Content-Type": row.mime ?? "application/octet-stream",
+      "Content-Type": safeType,
+      "X-Content-Type-Options": "nosniff",
+      "Content-Disposition": "inline",
       "Cache-Control": "private, max-age=31536000, immutable",
     },
   });

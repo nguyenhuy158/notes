@@ -68,3 +68,12 @@ export const IconTrash = base(
 );
 
 export const IconStop = base(<rect x="6" y="6" width="12" height="12" rx="2" />);
+
+export const IconTimeline = base(
+  <>
+    <circle cx="12" cy="4" r="2" />
+    <circle cx="12" cy="12" r="2" />
+    <circle cx="12" cy="20" r="2" />
+    <path d="M12 6v4m0 4v4" />
+  </>
+);

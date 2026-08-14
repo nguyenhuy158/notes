@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="cover" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC9DE"/>
+      <stop offset="1" stop-color="#F5A8CB"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="16" fill="#FDF3FF"/>
+
+  <!-- pencil bookmark -->
+  <g transform="translate(37 6) rotate(18)">
+    <rect x="-2.5" y="0" width="5" height="13" rx="1.5" fill="#B6E3FF"/>
+    <path d="M-2.5 0 L2.5 0 L0 -5.5 Z" fill="#FFE29A"/>
+  </g>
+
+  <!-- notebook -->
+  <rect x="16" y="18" width="32" height="38" rx="6" fill="url(#cover)" stroke="#E88AB8" stroke-width="2"/>
+  <rect x="16" y="18" width="5" height="38" rx="2.5" fill="#FFE1EF"/>
+
+  <!-- face -->
+  <path d="M24 34 q2 -3 4 0" fill="none" stroke="#7A3B57" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M36 34 q2 -3 4 0" fill="none" stroke="#7A3B57" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M28 41 q4 4 8 0" fill="none" stroke="#7A3B57" stroke-width="1.6" stroke-linecap="round"/>
+  <ellipse cx="23" cy="39" rx="2.4" ry="1.6" fill="#FF9FC2" opacity="0.7"/>
+  <ellipse cx="41" cy="39" rx="2.4" ry="1.6" fill="#FF9FC2" opacity="0.7"/>
+</svg>
