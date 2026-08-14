@@ -193,7 +193,11 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
   }, [month, total]);
 
   return (
-    <div className="px-4 py-4">
+    // Lưới lịch trước đây dính sát mép trên, phần trống còn lại dồn hết
+    // xuống dưới — nhìn lệch trên di động. Căn cả khối (kỷ niệm + header +
+    // lưới) vào giữa khoảng trống còn lại sau BottomNav, thay vì ép riêng
+    // lưới ngày (để "Kỷ niệm" vẫn đứng ngay trên header lịch, không tách rời).
+    <div className="flex min-h-[calc(100dvh-5.5rem)] flex-col justify-center px-4 py-4">
       <OnThisDay onOpenDay={onOpenDay} />
 
       <div className="flex items-center justify-between">

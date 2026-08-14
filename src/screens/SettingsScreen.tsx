@@ -134,16 +134,18 @@ export function SettingsScreen() {
               type="button"
               onClick={() => exportNotes("json")}
               disabled={exporting !== null}
-              className="flex-1 rounded-ui border border-border py-2 text-sm font-medium text-fg transition hover:bg-surface-muted disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-ui border border-border py-2 text-sm font-medium text-fg transition hover:bg-surface-muted disabled:opacity-60"
             >
+              <FileJson className="h-4 w-4" aria-hidden="true" />
               {exporting === "json" ? t.settings_exporting : "JSON"}
             </button>
             <button
               type="button"
               onClick={() => exportNotes("markdown")}
               disabled={exporting !== null}
-              className="flex-1 rounded-ui border border-border py-2 text-sm font-medium text-fg transition hover:bg-surface-muted disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-ui border border-border py-2 text-sm font-medium text-fg transition hover:bg-surface-muted disabled:opacity-60"
             >
+              <FileText className="h-4 w-4" aria-hidden="true" />
               {exporting === "markdown" ? t.settings_exporting : "Markdown"}
             </button>
           </div>
@@ -151,8 +153,9 @@ export function SettingsScreen() {
 
         <a
           href="/logout"
-          className="block rounded-ui border border-border bg-surface p-3 text-center text-sm font-medium text-danger"
+          className="flex items-center justify-center gap-2 rounded-ui border border-border bg-surface p-3 text-center text-sm font-medium text-danger"
         >
+          <LogOut className="h-4 w-4" aria-hidden="true" />
           {t.settings_logout}
         </a>
       </div>
