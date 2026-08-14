@@ -7,7 +7,7 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { cn } from "../ui/cn";
-import { IconArrowLeft, IconCamera, IconMic, IconStop, IconType } from "../icons";
+import { ArrowLeft, Camera, Mic, Square, Type } from "lucide-react";
 
 function TextComposer({ onSave, saving }: { onSave: (text: string) => void; saving: boolean }) {
   const { t } = useI18n();
@@ -78,7 +78,7 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
           aria-label={t.compose_mic_start}
           className="grid h-20 w-20 place-items-center rounded-full bg-primary text-primary-fg shadow-lg transition active:scale-95"
         >
-          <IconMic size={28} />
+          <Mic size={28} />
         </button>
       )}
 
@@ -93,7 +93,7 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
             aria-label={t.compose_mic_stop}
             className="grid h-20 w-20 place-items-center rounded-full bg-danger text-white shadow-lg transition active:scale-95"
           >
-            <IconStop size={24} />
+            <Square size={24} />
           </button>
         </>
       )}
@@ -139,7 +139,7 @@ function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; savin
             "flex h-56 w-full flex-col items-center justify-center gap-2 rounded-ui border-2 border-dashed border-border text-fg-muted transition hover:bg-surface-muted"
           )}
         >
-          <IconCamera size={28} />
+          <Camera size={28} />
           <span className="text-sm">{t.compose_photo_pick}</span>
         </button>
       )}
@@ -175,10 +175,10 @@ export function ComposeScreen({
   const [tab, setTab] = useState<NoteType>("text");
   const [saving, setSaving] = useState(false);
 
-  const TABS: { id: NoteType; label: string; icon: typeof IconType }[] = [
-    { id: "text", label: t.compose_tab_text, icon: IconType },
-    { id: "audio", label: t.compose_tab_audio, icon: IconMic },
-    { id: "photo", label: t.compose_tab_photo, icon: IconCamera },
+  const TABS: { id: NoteType; label: string; icon: typeof Type }[] = [
+    { id: "text", label: t.compose_tab_text, icon: Type },
+    { id: "audio", label: t.compose_tab_audio, icon: Mic },
+    { id: "photo", label: t.compose_tab_photo, icon: Camera },
   ];
 
   async function saveText(text: string) {
@@ -219,7 +219,7 @@ export function ComposeScreen({
             aria-label={t.day_back}
             className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
-            <IconArrowLeft size={18} />
+            <ArrowLeft size={18} />
           </button>
         }
       />

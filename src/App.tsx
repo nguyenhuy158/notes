@@ -5,7 +5,7 @@ import { DayScreen } from "./screens/DayScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { TimelineScreen } from "./screens/TimelineScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
-import { IconCalendar, IconSettings, IconTimeline } from "./icons";
+import { Calendar, Settings, History } from "lucide-react";
 import { useI18n } from "./i18n";
 
 type Tab = "calendar" | "timeline" | "settings";
@@ -16,9 +16,9 @@ export function App() {
   const [tab, setTab] = useState<Tab>("calendar");
 
   const NAV_ITEMS: BottomNavItem<Tab>[] = [
-    { id: "calendar", label: t.nav_calendar, icon: IconCalendar },
-    { id: "timeline", label: t.nav_timeline, icon: IconTimeline },
-    { id: "settings", label: t.nav_settings, icon: IconSettings },
+    { id: "calendar", label: t.nav_calendar, icon: Calendar },
+    { id: "timeline", label: t.nav_timeline, icon: History },
+    { id: "settings", label: t.nav_settings, icon: Settings },
   ];
   const [screen, setScreen] = useState<Screen>({ name: "root" });
 

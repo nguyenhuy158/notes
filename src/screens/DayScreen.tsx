@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, type Note } from "../api";
 import { useI18n } from "../i18n";
 import { formatTime, formatVi } from "../date";
@@ -8,7 +8,9 @@ import { Textarea } from "../ui/Input";
 import { EmptyState, LoadingState } from "../ui/states";
 import { useToast } from "../ui/Toast";
 import { Fab } from "../ui/BottomNav";
-import { IconArrowLeft, IconPlus, IconTrash } from "../icons";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+
+const AUTOSAVE_DELAY_MS = 1500;
 
 function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: string) => void; onSaved: (note: Note) => void }) {
   const { t } = useI18n();
@@ -16,19 +18,45 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(note.text);
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   async function save() {
+    if (!draftRef.current.trim() || draftRef.current === note.text) return;
     setBusy(true);
     try {
-      const r = await api.updateText(note.id, draft);
+      const r = await api.updateText(note.id, draftRef.current);
       onSaved(r.note);
-      setEditing(false);
+      setDirty(false);
     } catch {
       toast.error(t.day_save_failed);
     } finally {
       setBusy(false);
     }
   }
+
+  function onDraftChange(value: string) {
+    setDraft(value);
+    setDirty(true);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(save, AUTOSAVE_DELAY_MS);
+  }
+
+  function closeEditor() {
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    // Đóng ô sửa mà còn thay đổi chưa lưu (chưa hết debounce) -> lưu ngay,
+    // đừng để mất nội dung vừa gõ.
+    if (dirty) save();
+    setEditing(false);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, []);
 
   async function remove() {
     if (!window.confirm(t.day_delete_confirm)) return;
@@ -50,21 +78,21 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
           aria-label={t.day_delete}
           className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted hover:text-danger"
         >
-          <IconTrash size={16} />
+          <Trash2 size={16} />
         </button>
       </div>
 
       {note.type === "text" &&
         (editing ? (
           <div className="mt-2 space-y-2">
-            <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={4} />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={save} loading={busy}>
-                {t.day_save}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
+            <Textarea autoFocus value={draft} onChange={(e) => onDraftChange(e.target.value)} rows={4} />
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="ghost" onClick={closeEditor}>
                 {t.day_cancel}
               </Button>
+              <span className="text-xs text-fg-muted">
+                {busy ? t.day_saving : dirty ? t.day_unsaved : t.day_saved}
+              </span>
             </div>
           </div>
         ) : (
@@ -117,7 +145,7 @@ export function DayScreen({
             aria-label={t.day_back}
             className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
-            <IconArrowLeft size={18} />
+            <ArrowLeft size={18} />
           </button>
         }
       />
@@ -141,7 +169,7 @@ export function DayScreen({
         )}
       </div>
 
-      <Fab label={t.day_add} icon={<IconPlus size={22} />} aboveNav={false} onClick={() => onCompose(date)} />
+      <Fab label={t.day_add} icon={<Plus size={22} />} aboveNav={false} onClick={() => onCompose(date)} />
     </div>
   );
 }

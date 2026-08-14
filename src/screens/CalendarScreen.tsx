@@ -4,14 +4,14 @@ import type { NoteType } from "../api";
 import { useI18n } from "../i18n";
 import { monthString, todayString } from "../date";
 import { cn } from "../ui/cn";
-import { IconCamera, IconMic, IconType } from "../icons";
+import { Camera, Mic, Type } from "lucide-react";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
-const TYPE_ICON: Record<NoteType, typeof IconType> = {
-  text: IconType,
-  audio: IconMic,
-  photo: IconCamera,
+const TYPE_ICON: Record<NoteType, typeof Type> = {
+  text: Type,
+  audio: Mic,
+  photo: Camera,
 };
 
 function firstWeekdayOffset(year: number, month: number): number {

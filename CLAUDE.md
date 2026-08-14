@@ -22,8 +22,10 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   react-router hay tanstack-router — app đủ nhỏ, không cần deep-link.
   BottomNav 3 tab (Lịch / Dòng thời gian / Cài đặt) chỉ hiện ở root, ẩn khi
   vào `day`/`compose` (dùng HeaderBar + nút back thay vào).
-- **Icon tự vẽ SVG** (`src/icons.tsx`), không thêm dependency `lucide-react`
-  dù ui-kit gallery có dùng — giữ bundle nhẹ.
+- **Icon dùng `lucide-react`** (đổi từ tự vẽ SVG trong `src/icons.tsx`, file
+  này đã xoá) — số icon cần dùng tăng lên, tree-shake tốt nên không đáng tự
+  vẽ nữa. Xem [dev-notes/icon-libs.md](../dev-notes/icon-libs.md) để biết vì
+  sao chọn lucide thay vì tabler/heroicons/phosphor.
 
 ## Bảo mật: mime allow-list cho media
 

@@ -22,6 +22,11 @@ export function formatVi(value: string): string {
   return `${String(day).padStart(2, "0")}/${String(month + 1).padStart(2, "0")}/${year}`;
 }
 
+export function toJsDate(value: string): Date {
+  const { year, month, day } = parseDate(value);
+  return new Date(year, month, day);
+}
+
 export function formatTime(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;

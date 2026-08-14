@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { vi, enUS } from "date-fns/locale";
 import { api } from "../api";
 import { useI18n } from "../i18n";
-import { formatVi, monthString, todayString } from "../date";
+import { formatVi, monthString, toJsDate, todayString } from "../date";
 import { cn } from "../ui/cn";
 
 const MONTHS_BACK = 6;
@@ -16,7 +18,8 @@ function pastMonths(count: number): string[] {
 }
 
 export function TimelineScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const locale = lang === "vi" ? vi : enUS;
   const today = todayString();
   const [entries, setEntries] = useState<{ date: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,8 +72,13 @@ export function TimelineScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
                   isToday ? "bg-primary" : "bg-fg-muted",
                 )}
               />
-              <span className={cn("text-sm", isToday ? "font-semibold text-primary" : "text-fg")}>
-                {formatVi(date)}
+              <span className="flex flex-col">
+                <span className={cn("text-sm", isToday ? "font-semibold text-primary" : "text-fg")}>
+                  {formatVi(date)}
+                </span>
+                <span className="text-xs text-fg-muted">
+                  {formatDistanceToNow(toJsDate(date), { addSuffix: true, locale })}
+                </span>
               </span>
               <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted tabular">
                 {t.timeline_note_count(count)}
