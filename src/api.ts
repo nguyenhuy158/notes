@@ -16,6 +16,7 @@ export type Note = {
   mediaUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -71,6 +72,14 @@ export const api = {
     }),
 
   deleteNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}`, { method: "DELETE" }),
+
+  trash: () => request<{ notes: Note[] }>("/api/trash"),
+
+  restoreNote: (id: string) => request<{ note: Note }>(`/api/notes/${id}/restore`, { method: "POST" }),
+
+  purgeNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}/purge`, { method: "DELETE" }),
+
+  year: (year: string) => request<{ counts: Record<string, number> }>(`/api/year?year=${year}`),
 
   reorderNotes: (ids: string[]) =>
     request<{ ok: true }>("/api/notes/reorder", {

@@ -2,11 +2,113 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
-import { monthString, parseDate, todayString } from "../date";
+import { monthString, parseDate, toDateString, todayString } from "../date";
 import { cn } from "../ui/cn";
-import { Camera, CalendarDays, ChevronLeft, ChevronRight, Mic, PenLine, X } from "lucide-react";
+import { Camera, CalendarDays, ChevronLeft, ChevronRight, Grid3x3, Mic, PenLine, X } from "lucide-react";
 import { MoodEmoji } from "../moodEmojis";
 import { MOODS } from "../api";
+
+const SAD_MOODS = new Set(["😔", "😡", "😰"]);
+
+function recentDates(date: string, n: number): string[] {
+  const { year, month, day } = parseDate(date);
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(year, month, day - i);
+    return toDateString(d.getFullYear(), d.getMonth(), d.getDate());
+  });
+}
+
+function MoodNudge({ moods }: { moods: Record<string, string> }) {
+  const { t } = useI18n();
+  const shouldNudge = recentDates(todayString(), 3).every((date) => SAD_MOODS.has(moods[date]));
+  if (!shouldNudge) return null;
+
+  return (
+    <div className="mb-3 rounded-ui border border-border bg-surface-muted p-3 text-sm text-fg">
+      {t.mood_nudge_text}
+    </div>
+  );
+}
+
+function YearHeatmap({
+  year,
+  onOpenDay,
+  onClose,
+}: {
+  year: number;
+  onOpenDay: (date: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const today = todayString();
+
+  useEffect(() => {
+    api.year(String(year)).then((r) => setCounts(r.counts));
+  }, [year]);
+
+  function levelClass(count: number): string {
+    if (count === 0) return "bg-surface-muted";
+    if (count === 1) return "bg-primary/30";
+    if (count === 2) return "bg-primary/60";
+    return "bg-primary";
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-bg" onClick={onClose}>
+      <div className="mx-auto max-w-md px-4 py-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <span className="text-base font-semibold text-fg">{t.year_title(year)}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t.calendar_done}
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mt-2 grid grid-cols-3 gap-3">
+          {Array.from({ length: 12 }, (_, month) => {
+            const offset = firstWeekdayOffset(year, month);
+            const total = daysInMonth(year, month);
+            const monthStr = monthString(year, month);
+
+            return (
+              <div key={month}>
+                <p className="mb-1 text-center text-xs font-medium text-fg-muted">
+                  {t.calendar_month_short(month + 1)}
+                </p>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {Array.from({ length: offset }, (_, i) => (
+                    <div key={`pad-${i}`} />
+                  ))}
+                  {Array.from({ length: total }, (_, i) => {
+                    const day = i + 1;
+                    const date = `${monthStr}-${String(day).padStart(2, "0")}`;
+                    return (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => onOpenDay(date)}
+                        className={cn(
+                          "aspect-square rounded-[2px] transition hover:ring-1 hover:ring-primary",
+                          levelClass(counts[date] ?? 0),
+                          date === today && "ring-1 ring-primary",
+                        )}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
@@ -153,6 +255,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
   const [days, setDays] = useState<Record<string, NoteType[]>>({});
   const [moods, setMoods] = useState<Record<string, string>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [yearViewOpen, setYearViewOpen] = useState(false);
 
   const month = monthString(view.year, view.month);
 
@@ -200,6 +303,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
     // lưới ngày (để "Kỷ niệm" vẫn đứng ngay trên header lịch, không tách rời).
     <div className="flex min-h-[calc(100dvh-5.5rem)] flex-col justify-center px-4 py-4">
       <OnThisDay onOpenDay={onOpenDay} />
+      <MoodNudge moods={moods} />
 
       <div className="flex items-center justify-between">
         <button
@@ -230,14 +334,24 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
             </button>
           )}
         </span>
-        <button
-          type="button"
-          onClick={() => shiftMonth(1)}
-          aria-label={t.calendar_next_month}
-          className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
-        >
-          ›
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setYearViewOpen(true)}
+            aria-label={t.calendar_year_view}
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            <Grid3x3 size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            aria-label={t.calendar_next_month}
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            ›
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-7 gap-1">
@@ -299,6 +413,17 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
             })}
           </div>
         </div>
+      )}
+
+      {yearViewOpen && (
+        <YearHeatmap
+          year={view.year}
+          onOpenDay={(date) => {
+            setYearViewOpen(false);
+            onOpenDay(date);
+          }}
+          onClose={() => setYearViewOpen(false)}
+        />
       )}
 
       {pickerOpen && (

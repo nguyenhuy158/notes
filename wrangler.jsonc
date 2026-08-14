@@ -29,5 +29,8 @@
       "binding": "MEDIA",
       "bucket_name": "notes-media"
     }
-  ]
+  ],
+  "ai": {
+    "binding": "AI"
+  }
 }

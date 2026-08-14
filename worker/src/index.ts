@@ -6,6 +6,7 @@ type Bindings = {
   DB: D1Database;
   MEDIA: R2Bucket;
   SSO_ISSUER: string;
+  AI: Ai;
 };
 
 type Variables = {
@@ -26,6 +27,7 @@ type NoteRow = {
   pinned: number;
   tags: string | null;
   share_token: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -84,6 +86,7 @@ function toNoteJson(row: NoteRow) {
     mediaUrl: row.media_key ? `/api/media/${row.id}?v=${encodeURIComponent(row.updated_at)}` : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
   };
 }
 
@@ -102,7 +105,8 @@ app.get("/api/days", async (c) => {
   if (!MONTH_RE.test(month)) return c.json({ error: "invalid month" }, 400);
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    "SELECT date, type, mood FROM notes_entries WHERE user_id = ? AND date LIKE ? GROUP BY date, type, mood"
+    `SELECT date, type, mood FROM notes_entries
+     WHERE user_id = ? AND date LIKE ? AND deleted_at IS NULL GROUP BY date, type, mood`
   )
     .bind(userId, `${month}-%`)
     .all<{ date: string; type: NoteType; mood: string | null }>();
@@ -116,6 +120,25 @@ app.get("/api/days", async (c) => {
   return c.json({ days, moods });
 });
 
+const YEAR_RE = /^\d{4}$/;
+
+// Số note theo từng ngày trong CẢ NĂM, 1 query duy nhất — dùng cho heatmap
+// năm (Calendar), rẻ hơn nhiều so với gọi /api/days 12 lần.
+app.get("/api/year", async (c) => {
+  const year = c.req.query("year") ?? "";
+  if (!YEAR_RE.test(year)) return c.json({ error: "invalid year" }, 400);
+  const userId = c.get("userId");
+  const { results } = await c.env.DB.prepare(
+    `SELECT date, COUNT(*) as count FROM notes_entries
+     WHERE user_id = ? AND date LIKE ? AND deleted_at IS NULL GROUP BY date`
+  )
+    .bind(userId, `${year}-%`)
+    .all<{ date: string; count: number }>();
+  const counts: Record<string, number> = {};
+  for (const row of results) counts[row.date] = row.count;
+  return c.json({ counts });
+});
+
 // "Kỷ niệm": note trùng ngày/tháng ở các năm trước, để nhắc lại chuyện cũ
 // trên trang chủ (giống tính năng "On this day" ở Google Photos/Facebook).
 app.get("/api/on-this-day", async (c) => {
@@ -124,7 +147,9 @@ app.get("/api/on-this-day", async (c) => {
   const userId = c.get("userId");
   const monthDay = date.slice(5); // "MM-DD"
   const { results } = await c.env.DB.prepare(
-    "SELECT * FROM notes_entries WHERE user_id = ? AND date != ? AND substr(date, 6) = ? ORDER BY date DESC"
+    `SELECT * FROM notes_entries
+     WHERE user_id = ? AND date != ? AND substr(date, 6) = ? AND deleted_at IS NULL
+     ORDER BY date DESC`
   )
     .bind(userId, date, monthDay)
     .all<NoteRow>();
@@ -141,7 +166,8 @@ app.get("/api/search", async (c) => {
   const like = `%${q.replace(/[%_\\]/g, "\\$&")}%`;
   const { results } = await c.env.DB.prepare(
     `SELECT * FROM notes_entries
-     WHERE user_id = ? AND ((type = 'text' AND text LIKE ? ESCAPE '\\') OR tags LIKE ? ESCAPE '\\')
+     WHERE user_id = ? AND deleted_at IS NULL
+       AND ((type = 'text' AND text LIKE ? ESCAPE '\\') OR tags LIKE ? ESCAPE '\\')
      ORDER BY date DESC LIMIT 50`
   )
     .bind(userId, like, like)
@@ -154,7 +180,8 @@ app.get("/api/notes", async (c) => {
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    "SELECT * FROM notes_entries WHERE user_id = ? AND date = ? ORDER BY pinned DESC, sort_order ASC, created_at ASC"
+    `SELECT * FROM notes_entries WHERE user_id = ? AND date = ? AND deleted_at IS NULL
+     ORDER BY pinned DESC, sort_order ASC, created_at ASC`
   )
     .bind(userId, date)
     .all<NoteRow>();
@@ -184,20 +211,34 @@ app.post("/api/notes", async (c) => {
   const id = crypto.randomUUID();
   let mediaKey: string | null = null;
   let mime: string | null = null;
+  let finalText = text;
 
   if (file) {
     mediaKey = `${userId}/${id}`;
     mime = file.type;
-    await c.env.MEDIA.put(mediaKey, await file.arrayBuffer(), {
-      httpMetadata: { contentType: mime },
-    });
+    const bytes = await file.arrayBuffer();
+    await c.env.MEDIA.put(mediaKey, bytes, { httpMetadata: { contentType: mime } });
+
+    // Tự chuyển ghi âm thành chữ (Workers AI Whisper) khi user không tự gõ
+    // caption — tiện tìm kiếm/đọc lại sau. Lỗi ở bước này KHÔNG chặn lưu note
+    // (transcribe là tiện ích thêm, không phải yêu cầu bắt buộc).
+    if (type === "audio" && !text.trim()) {
+      try {
+        const result = await c.env.AI.run("@cf/openai/whisper", {
+          audio: [...new Uint8Array(bytes)],
+        });
+        if (result.text?.trim()) finalText = result.text.trim();
+      } catch (err) {
+        console.error("Whisper transcribe failed", err);
+      }
+    }
   }
 
   await c.env.DB.prepare(
     `INSERT INTO notes_entries (id, user_id, date, type, text, media_key, mime, mood)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(id, userId, date, type, text, mediaKey, mime, mood)
+    .bind(id, userId, date, type, finalText, mediaKey, mime, mood)
     .run();
 
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
@@ -383,10 +424,59 @@ app.put("/api/notes/:id/media", async (c) => {
   return c.json({ note: toNoteJson(row!) });
 });
 
+// Xoá mềm: đánh dấu deleted_at thay vì xoá hẳn, giữ nguyên media ở R2 — cho
+// phép "Hoàn tác" từ Thùng rác. Dọn hẳn (xoá thật + media) ở /api/notes/:id/purge.
 app.delete("/api/notes/:id", async (c) => {
   const id = c.req.param("id");
   const userId = c.get("userId");
-  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+  const existing = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
+  )
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  await c.env.DB.prepare(
+    "UPDATE notes_entries SET deleted_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
+  )
+    .bind(id)
+    .run();
+  return c.json({ ok: true });
+});
+
+app.get("/api/trash", async (c) => {
+  const userId = c.get("userId");
+  const { results } = await c.env.DB.prepare(
+    `SELECT * FROM notes_entries WHERE user_id = ? AND deleted_at IS NOT NULL
+     ORDER BY deleted_at DESC LIMIT 200`
+  )
+    .bind(userId)
+    .all<NoteRow>();
+  return c.json({ notes: results.map(toNoteJson) });
+});
+
+app.post("/api/notes/:id/restore", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const existing = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL"
+  )
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  await c.env.DB.prepare("UPDATE notes_entries SET deleted_at = NULL WHERE id = ?").bind(id).run();
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
+  return c.json({ note: toNoteJson(row!) });
+});
+
+// Xoá vĩnh viễn (từ Thùng rác) — xoá hẳn media R2 + hàng trong D1.
+app.delete("/api/notes/:id/purge", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const existing = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL"
+  )
     .bind(id, userId)
     .first<NoteRow>();
   if (!existing) return c.json({ error: "not found" }, 404);
@@ -429,7 +519,7 @@ app.get("/api/export", async (c) => {
   const userId = c.get("userId");
   const format = c.req.query("format") === "markdown" ? "markdown" : "json";
   const { results } = await c.env.DB.prepare(
-    "SELECT * FROM notes_entries WHERE user_id = ? ORDER BY date ASC, created_at ASC"
+    "SELECT * FROM notes_entries WHERE user_id = ? AND deleted_at IS NULL ORDER BY date ASC, created_at ASC"
   )
     .bind(userId)
     .all<NoteRow>();

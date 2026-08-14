@@ -59,6 +59,23 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
 - **Sửa caption cho audio/photo**: `PUT /api/notes/:id` giờ áp dụng mọi loại
   note, không chỉ `text` — audio/photo cho phép caption rỗng (tuỳ chọn), chỉ
   note gốc `type = 'text'` mới bắt buộc không rỗng.
+- **Xoá mềm** (`deleted_at`): `DELETE /api/notes/:id` chỉ đánh dấu, không xoá
+  thật, giữ nguyên media R2 để có thể hoàn tác từ Thùng rác
+  (`GET /api/trash`, `POST .../restore`). Xoá vĩnh viễn qua
+  `DELETE /api/notes/:id/purge`. MỌI query liệt kê note (days/year/notes/
+  search/export/on-this-day) phải thêm `AND deleted_at IS NULL`, thêm route
+  mới nhớ check lại danh sách này.
+- **Speech-to-text ghi âm**: `POST /api/notes` tự chạy Workers AI
+  (`@cf/openai/whisper`, binding `AI` trong `wrangler.jsonc`) khi tạo note
+  audio mà không kèm caption — lỗi ở bước này không chặn lưu note (transcribe
+  là tiện ích thêm, không phải yêu cầu).
+- **Khoá PIN cục bộ** (`src/pinLock.ts`): CHỈ chắn người cầm máy đã đăng nhập
+  sẵn, không phải bảo mật thật — hash SHA-256 lưu `localStorage`, không có
+  cách khôi phục nếu quên (không đồng bộ server). Mở khoá tính theo phiên
+  (`sessionStorage`), không cần nhập lại khi chuyển tab trong cùng 1 lần mở
+  trình duyệt.
+- **Year heatmap**: endpoint riêng `GET /api/year` (1 query cho cả năm) thay
+  vì gọi `/api/days` 12 lần — rẻ hơn nhiều, xem `worker/src/index.ts`.
 
 ## Bảo mật: mime allow-list cho media
 

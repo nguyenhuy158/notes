@@ -6,7 +6,7 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { ThemeToggle } from "../ui/theme";
 import { Switch } from "../ui/Switch";
 import { Avatar } from "../ui/Avatar";
-import { Languages, BarChart3, FileJson, FileText, LogOut } from "lucide-react";
+import { Languages, BarChart3, FileJson, FileText, LogOut, Trash2 } from "lucide-react";
 import {
   getReminderTime,
   isReminderEnabled,
@@ -15,6 +15,9 @@ import {
   startReminderLoop,
   stopReminderLoop,
 } from "../reminder";
+import { clearPin, isPinSet, setPin } from "../pinLock";
+import { Input } from "../ui/Input";
+import { Button } from "../ui/Button";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -28,7 +31,7 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(1)} ${units[i]}`;
 }
 
-export function SettingsScreen() {
+export function SettingsScreen({ onOpenTrash }: { onOpenTrash: () => void }) {
   const { t } = useI18n();
   const toast = useToast();
   const [exporting, setExporting] = useState<"json" | "markdown" | null>(null);
@@ -36,6 +39,10 @@ export function SettingsScreen() {
   const [me, setMe] = useState<{ email: string; name: string } | null>(null);
   const [reminderOn, setReminderOn] = useState(isReminderEnabled);
   const [reminderTime, setReminderTimeState] = useState(getReminderTime);
+  const [pinOn, setPinOn] = useState(isPinSet);
+  const [pinStep, setPinStep] = useState<"idle" | "setting" | "confirming">("idle");
+  const [pinDraft, setPinDraft] = useState("");
+  const [pinFirst, setPinFirst] = useState("");
 
   useEffect(() => {
     api.stats().then(setStats).catch(() => {});
@@ -65,6 +72,36 @@ export function SettingsScreen() {
     setReminderOn(next);
     stopReminderLoop();
     if (next) startReminderLoop(t.settings_reminder);
+  }
+
+  function togglePinLock(next: boolean) {
+    if (!next) {
+      clearPin();
+      setPinOn(false);
+      return;
+    }
+    setPinFirst("");
+    setPinDraft("");
+    setPinStep("setting");
+  }
+
+  function submitPinStep() {
+    if (pinStep === "setting") {
+      setPinFirst(pinDraft);
+      setPinDraft("");
+      setPinStep("confirming");
+      return;
+    }
+    if (pinDraft !== pinFirst) {
+      toast.error(t.pin_mismatch);
+      setPinDraft("");
+      setPinStep("setting");
+      return;
+    }
+    setPin(pinFirst).then(() => {
+      setPinOn(true);
+      setPinStep("idle");
+    });
   }
 
   function changeReminderTime(time: string) {
@@ -126,6 +163,47 @@ export function SettingsScreen() {
             />
           )}
         </div>
+
+        <div className="rounded-ui border border-border bg-surface p-3">
+          <Switch
+            checked={pinOn}
+            onChange={togglePinLock}
+            label={t.settings_pin_lock}
+            description={t.settings_pin_lock_desc}
+          />
+          {pinStep !== "idle" && (
+            <div className="mt-2 space-y-2">
+              <Input
+                autoFocus
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder={t.pin_length_hint}
+                value={pinDraft}
+                onChange={(e) => setPinDraft(e.target.value.replace(/\D/g, ""))}
+                onKeyDown={(e) => e.key === "Enter" && pinDraft.length >= 4 && submitPinStep()}
+                className="text-center tracking-[0.4em]"
+              />
+              <p className="text-xs text-fg-muted">
+                {pinStep === "setting" ? t.pin_set_title : t.pin_confirm_title}
+              </p>
+              <Button size="sm" block disabled={pinDraft.length < 4} onClick={submitPinStep}>
+                {t.day_cancel}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onOpenTrash}
+          className="flex w-full items-center justify-between rounded-ui border border-border bg-surface p-3 text-left"
+        >
+          <span className="flex items-center gap-2 text-sm text-fg">
+            <Trash2 className="h-4 w-4 text-fg-muted" aria-hidden="true" />
+            {t.settings_trash}
+          </span>
+        </button>
 
         <div className="rounded-ui border border-border bg-surface p-3">
           <span className="text-sm text-fg">{t.settings_export}</span>

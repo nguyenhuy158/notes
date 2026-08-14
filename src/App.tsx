@@ -4,15 +4,23 @@ import { CalendarScreen } from "./screens/CalendarScreen";
 import { ComposeScreen } from "./screens/ComposeScreen";
 import { DayScreen } from "./screens/DayScreen";
 import { LoginScreen } from "./screens/LoginScreen";
+import { PinLockScreen } from "./screens/PinLockScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { ShareScreen } from "./screens/ShareScreen";
 import { TimelineScreen } from "./screens/TimelineScreen";
+import { TrashScreen } from "./screens/TrashScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
 import { Calendar, Settings, History } from "lucide-react";
 import { useI18n } from "./i18n";
+import { isUnlockedThisSession, markUnlocked } from "./pinLock";
+import { todayString } from "./date";
 
 type Tab = "calendar" | "timeline" | "settings";
-type Screen = { name: "root" } | { name: "day"; date: string } | { name: "compose"; date: string };
+type Screen =
+  | { name: "root" }
+  | { name: "day"; date: string }
+  | { name: "compose"; date: string }
+  | { name: "trash" };
 type Auth = { status: "checking" } | { status: "anon" } | { status: "authed" };
 
 const SHARE_PATH_RE = /^\/s\/([^/]+)/;
@@ -29,6 +37,7 @@ export function App() {
   const [auth, setAuth] = useState<Auth>({ status: "checking" });
   const [tab, setTab] = useState<Tab>("calendar");
   const [screen, setScreen] = useState<Screen>({ name: "root" });
+  const [locked, setLocked] = useState(() => !isUnlockedThisSession());
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +50,17 @@ export function App() {
     };
   }, []);
 
+  // PWA shortcut "Ghi chú mới" (manifest, vite.config.ts) mở app kèm
+  // "?new=1" — mở thẳng Compose cho hôm nay, dọn query string ngay sau đó để
+  // back/reload không mở lại Compose lần nữa.
+  useEffect(() => {
+    if (auth.status !== "authed") return;
+    if (new URLSearchParams(window.location.search).get("new") !== "1") return;
+    setScreen({ name: "compose", date: todayString() });
+    window.history.replaceState(null, "", "/");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.status]);
+
   if (auth.status === "checking") {
     return (
       <div className="grid min-h-dvh place-items-center text-sm text-fg-muted">{t.auth_checking}</div>
@@ -49,6 +69,17 @@ export function App() {
 
   if (auth.status === "anon") {
     return <LoginScreen />;
+  }
+
+  if (locked) {
+    return (
+      <PinLockScreen
+        onUnlock={() => {
+          markUnlocked();
+          setLocked(false);
+        }}
+      />
+    );
   }
 
   const NAV_ITEMS: BottomNavItem<Tab>[] = [
@@ -78,6 +109,10 @@ export function App() {
     );
   }
 
+  if (screen.name === "trash") {
+    return <TrashScreen onBack={() => setScreen({ name: "root" })} />;
+  }
+
   return (
     <div className="mx-auto max-w-md pb-20">
       {tab === "calendar" && (
@@ -86,7 +121,7 @@ export function App() {
       {tab === "timeline" && (
         <TimelineScreen onOpenDay={(date) => setScreen({ name: "day", date })} />
       )}
-      {tab === "settings" && <SettingsScreen />}
+      {tab === "settings" && <SettingsScreen onOpenTrash={() => setScreen({ name: "trash" })} />}
 
       <BottomNav items={NAV_ITEMS} active={tab} onChange={setTab} />
     </div>

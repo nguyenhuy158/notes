@@ -47,3 +47,8 @@ ALTER TABLE notes_entries ADD COLUMN tags TEXT;
 -- index.ts) đọc theo token này, KHÔNG đi qua middleware xác thực /api/*.
 ALTER TABLE notes_entries ADD COLUMN share_token TEXT;
 CREATE INDEX IF NOT EXISTS idx_notes_entries_share_token ON notes_entries(share_token);
+
+-- Xoá mềm: NULL = còn sống. Mọi query liệt kê note (days/notes/search/export/
+-- on-this-day/year) PHẢI thêm "AND deleted_at IS NULL", không thì note đã
+-- "xoá" vẫn hiện lại. Dọn vĩnh viễn qua /api/notes/:id/purge (Thùng rác).
+ALTER TABLE notes_entries ADD COLUMN deleted_at TEXT;
