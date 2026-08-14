@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, MOODS, type Mood, type NoteType } from "../api";
+import { MoodEmoji } from "../moodEmojis";
 import { useI18n } from "../i18n";
 import { formatTime, formatVi } from "../date";
 import { Button } from "../ui/Button";

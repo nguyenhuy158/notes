@@ -34,7 +34,13 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        // /api/* là fetch không phải navigation nên vốn không khớp SW route
+        // này, nhưng khai rõ cho chắc. /login và /logout PHẢI loại trừ: đây
+        // là điều hướng doc thật sang route xử lý ở Worker (redirect SSO,
+        // xoá cookie) — nếu để SW bắt, nó trả thẳng index.html cache sẵn,
+        // request không bao giờ chạm server, đăng xuất trông như chạy nhưng
+        // cookie không hề bị xoá.
+        navigateFallbackDenylist: [/^\/api\//, /^\/login/, /^\/logout/],
         // Không cache /api/*: note mới nhất quan trọng hơn shell offline cho
         // phần dữ liệu, mất mạng thì UI vẫn lên, chỉ phần fetch báo lỗi bình
         // thường (đã có EmptyState/LoadingState sẵn).
