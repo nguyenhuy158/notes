@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getClaimsFromRequest, resolveUserId, ssoUrl } from "./session.js";
+import { BUILD_INFO } from "../../shared/build-info";
 
 type Bindings = {
   DB: D1Database;

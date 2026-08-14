@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Note } from "../api";
+import { useI18n } from "../i18n";
 import { formatTime, formatVi } from "../date";
 import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
@@ -10,6 +11,7 @@ import { Fab } from "../ui/BottomNav";
 import { IconArrowLeft, IconPlus, IconTrash } from "../icons";
 
 function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: string) => void; onSaved: (note: Note) => void }) {
+  const { t } = useI18n();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(note.text);
@@ -22,19 +24,19 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
       onSaved(r.note);
       setEditing(false);
     } catch {
-      toast.error("Lưu thất bại");
+      toast.error(t.day_save_failed);
     } finally {
       setBusy(false);
     }
   }
 
   async function remove() {
-    if (!window.confirm("Xoá ghi chú này?")) return;
+    if (!window.confirm(t.day_delete_confirm)) return;
     try {
       await api.deleteNote(note.id);
       onDeleted(note.id);
     } catch {
-      toast.error("Xoá thất bại");
+      toast.error(t.day_delete_failed);
     }
   }
 
@@ -45,7 +47,7 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
         <button
           type="button"
           onClick={remove}
-          aria-label="Xoá"
+          aria-label={t.day_delete}
           className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted hover:text-danger"
         >
           <IconTrash size={16} />
@@ -58,10 +60,10 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
             <Textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={4} />
             <div className="flex gap-2">
               <Button size="sm" onClick={save} loading={busy}>
-                Lưu
+                {t.day_save}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-                Huỷ
+                {t.day_cancel}
               </Button>
             </div>
           </div>
@@ -91,6 +93,7 @@ export function DayScreen({
   onBack: () => void;
   onCompose: (date: string) => void;
 }) {
+  const { t } = useI18n();
   const toast = useToast();
   const [notes, setNotes] = useState<Note[] | null>(null);
 
@@ -99,7 +102,7 @@ export function DayScreen({
     api
       .notes(date)
       .then((r) => setNotes(r.notes))
-      .catch(() => toast.error("Không tải được ghi chú ngày này"));
+      .catch(() => toast.error(t.day_load_failed));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
@@ -111,7 +114,7 @@ export function DayScreen({
           <button
             type="button"
             onClick={onBack}
-            aria-label="Quay lại"
+            aria-label={t.day_back}
             className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <IconArrowLeft size={18} />
@@ -123,7 +126,7 @@ export function DayScreen({
         {notes === null ? (
           <LoadingState />
         ) : notes.length === 0 ? (
-          <EmptyState title="Chưa có ghi chú" description="Bấm nút + để thêm ghi chú cho ngày này." />
+          <EmptyState title={t.day_empty_title} description={t.day_empty_desc} />
         ) : (
           notes.map((note) => (
             <NoteCard
@@ -138,7 +141,7 @@ export function DayScreen({
         )}
       </div>
 
-      <Fab label="Thêm ghi chú" icon={<IconPlus size={22} />} aboveNav={false} onClick={() => onCompose(date)} />
+      <Fab label={t.day_add} icon={<IconPlus size={22} />} aboveNav={false} onClick={() => onCompose(date)} />
     </div>
   );
 }

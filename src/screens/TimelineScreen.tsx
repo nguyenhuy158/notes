@@ -43,11 +43,11 @@ export function TimelineScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
 
   return (
     <div className="px-4 py-4">
-      <h1 className="text-base font-semibold text-fg">Dòng thời gian</h1>
+      <h1 className="text-base font-semibold text-fg">{t.timeline_title}</h1>
 
-      {loading && <p className="mt-4 text-sm text-fg-muted">Đang tải...</p>}
+      {loading && <p className="mt-4 text-sm text-fg-muted">{t.timeline_loading}</p>}
       {!loading && entries.length === 0 && (
-        <p className="mt-4 text-sm text-fg-muted">Chưa có ghi chú nào.</p>
+        <p className="mt-4 text-sm text-fg-muted">{t.timeline_empty}</p>
       )}
 
       <div className="relative mt-4 pl-5">
@@ -73,7 +73,7 @@ export function TimelineScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
                 {formatVi(date)}
               </span>
               <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted tabular">
-                {count} ghi chú
+                {t.timeline_note_count(count)}
               </span>
             </button>
           );

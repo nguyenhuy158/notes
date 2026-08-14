@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { cn } from "./cn";
+import { useI18n } from "../i18n";
 
 export type ThemeMode = "system" | "light" | "dark";
 
@@ -77,12 +78,6 @@ const NEXT: Record<ThemeMode, ThemeMode> = {
   dark: "system",
 };
 
-const LABEL: Record<ThemeMode, string> = {
-  system: "Theo hệ thống",
-  light: "Sáng",
-  dark: "Tối",
-};
-
 const ICON: Record<ThemeMode, ReactNode> = {
   system: (
     <path d="M4 5h16v10H4zM8 19h8" strokeLinecap="round" strokeLinejoin="round" />
@@ -99,13 +94,19 @@ const ICON: Record<ThemeMode, ReactNode> = {
 /** Nut nho xoay vong system -> light -> dark. */
 export function ThemeToggle({ className }: { className?: string }) {
   const { mode, setMode } = useTheme();
+  const { t } = useI18n();
+  const LABEL: Record<ThemeMode, string> = {
+    system: t.theme_system,
+    light: t.theme_light,
+    dark: t.theme_dark,
+  };
 
   return (
     <button
       type="button"
       onClick={() => setMode(NEXT[mode])}
-      aria-label={`Giao diện: ${LABEL[mode]}. Nhấn để đổi`}
-      title={`Giao diện: ${LABEL[mode]}`}
+      aria-label={LABEL[mode]}
+      title={LABEL[mode]}
       className={cn(
         "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-ui text-fg-muted transition",
         "hover:bg-surface-muted hover:text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10",

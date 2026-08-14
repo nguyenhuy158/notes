@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { api, type NoteType } from "../api";
+import { useI18n } from "../i18n";
 import { formatVi } from "../date";
 import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
@@ -8,13 +9,8 @@ import { useToast } from "../ui/Toast";
 import { cn } from "../ui/cn";
 import { IconArrowLeft, IconCamera, IconMic, IconStop, IconType } from "../icons";
 
-const TABS: { id: NoteType; label: string; icon: typeof IconType }[] = [
-  { id: "text", label: "Văn bản", icon: IconType },
-  { id: "audio", label: "Âm thanh", icon: IconMic },
-  { id: "photo", label: "Ảnh", icon: IconCamera },
-];
-
 function TextComposer({ onSave, saving }: { onSave: (text: string) => void; saving: boolean }) {
+  const { t } = useI18n();
   const [text, setText] = useState("");
   return (
     <div className="space-y-3">
@@ -23,16 +19,17 @@ function TextComposer({ onSave, saving }: { onSave: (text: string) => void; savi
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={10}
-        placeholder="Hôm nay bạn thế nào?"
+        placeholder={t.compose_text_placeholder}
       />
       <Button block onClick={() => onSave(text)} loading={saving} disabled={!text.trim()}>
-        Lưu
+        {t.compose_save}
       </Button>
     </div>
   );
 }
 
 function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; saving: boolean }) {
+  const { t } = useI18n();
   const toast = useToast();
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -57,7 +54,7 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
       setRecording(true);
       timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
     } catch {
-      toast.error("Không mở được micro. Kiểm tra quyền truy cập.");
+      toast.error(t.compose_mic_error);
     }
   }
 
@@ -78,7 +75,7 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
         <button
           type="button"
           onClick={start}
-          aria-label="Bắt đầu ghi âm"
+          aria-label={t.compose_mic_start}
           className="grid h-20 w-20 place-items-center rounded-full bg-primary text-primary-fg shadow-lg transition active:scale-95"
         >
           <IconMic size={28} />
@@ -93,7 +90,7 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
           <button
             type="button"
             onClick={stop}
-            aria-label="Dừng ghi âm"
+            aria-label={t.compose_mic_stop}
             className="grid h-20 w-20 place-items-center rounded-full bg-danger text-white shadow-lg transition active:scale-95"
           >
             <IconStop size={24} />
@@ -106,10 +103,10 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
           <audio controls src={URL.createObjectURL(blob)} className="w-full" />
           <div className="flex gap-2">
             <Button variant="ghost" onClick={retake}>
-              Ghi lại
+              {t.compose_retake}
             </Button>
             <Button className="flex-1" onClick={() => onSave(blob)} loading={saving}>
-              Lưu
+              {t.compose_save}
             </Button>
           </div>
         </div>
@@ -119,6 +116,7 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
 }
 
 function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; saving: boolean }) {
+  const { t } = useI18n();
   const [file, setFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -142,7 +140,7 @@ function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; savin
           )}
         >
           <IconCamera size={28} />
-          <span className="text-sm">Chụp ảnh hoặc chọn ảnh</span>
+          <span className="text-sm">{t.compose_photo_pick}</span>
         </button>
       )}
 
@@ -151,10 +149,10 @@ function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; savin
           <img src={URL.createObjectURL(file)} alt="" className="max-h-80 w-full rounded-ui object-cover" />
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => setFile(null)}>
-              Chọn lại
+              {t.compose_photo_retake}
             </Button>
             <Button className="flex-1" onClick={() => onSave(file)} loading={saving}>
-              Lưu
+              {t.compose_save}
             </Button>
           </div>
         </div>
@@ -172,18 +170,25 @@ export function ComposeScreen({
   onBack: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const toast = useToast();
   const [tab, setTab] = useState<NoteType>("text");
   const [saving, setSaving] = useState(false);
+
+  const TABS: { id: NoteType; label: string; icon: typeof IconType }[] = [
+    { id: "text", label: t.compose_tab_text, icon: IconType },
+    { id: "audio", label: t.compose_tab_audio, icon: IconMic },
+    { id: "photo", label: t.compose_tab_photo, icon: IconCamera },
+  ];
 
   async function saveText(text: string) {
     setSaving(true);
     try {
       await api.createTextNote(date, text);
-      toast.success("Đã lưu");
+      toast.success(t.compose_saved);
       onSaved();
     } catch {
-      toast.error("Lưu thất bại, thử lại");
+      toast.error(t.compose_save_failed);
     } finally {
       setSaving(false);
     }
@@ -193,10 +198,10 @@ export function ComposeScreen({
     setSaving(true);
     try {
       await api.createMediaNote(date, type, file, filename);
-      toast.success("Đã lưu");
+      toast.success(t.compose_saved);
       onSaved();
     } catch {
-      toast.error("Lưu thất bại, thử lại");
+      toast.error(t.compose_save_failed);
     } finally {
       setSaving(false);
     }
@@ -205,13 +210,13 @@ export function ComposeScreen({
   return (
     <div>
       <HeaderBar
-        title="Ghi chú mới"
+        title={t.compose_title}
         subtitle={formatVi(date)}
         leading={
           <button
             type="button"
             onClick={onBack}
-            aria-label="Quay lại"
+            aria-label={t.day_back}
             className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <IconArrowLeft size={18} />
