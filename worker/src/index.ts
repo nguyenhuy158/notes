@@ -67,12 +67,14 @@ app.get("/api/days", async (c) => {
   if (!MONTH_RE.test(month)) return c.json({ error: "invalid month" }, 400);
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    "SELECT date, COUNT(*) AS count FROM notes_entries WHERE user_id = ? AND date LIKE ? GROUP BY date"
+    "SELECT date, type FROM notes_entries WHERE user_id = ? AND date LIKE ? GROUP BY date, type"
   )
     .bind(userId, `${month}-%`)
-    .all<{ date: string; count: number }>();
-  const days: Record<string, number> = {};
-  for (const row of results) days[row.date] = row.count;
+    .all<{ date: string; type: NoteType }>();
+  const days: Record<string, NoteType[]> = {};
+  for (const row of results) {
+    (days[row.date] ??= []).push(row.type);
+  }
   return c.json({ days });
 });
 

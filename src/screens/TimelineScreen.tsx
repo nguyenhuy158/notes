@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { useI18n } from "../i18n";
 import { formatVi, monthString, todayString } from "../date";
 import { cn } from "../ui/cn";
 
@@ -15,6 +16,7 @@ function pastMonths(count: number): string[] {
 }
 
 export function TimelineScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {
+  const { t } = useI18n();
   const today = todayString();
   const [entries, setEntries] = useState<{ date: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,10 +27,10 @@ export function TimelineScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
     Promise.all(pastMonths(MONTHS_BACK).map((m) => api.days(m)))
       .then((results) => {
         if (cancelled) return;
-        const merged: Record<string, number> = {};
+        const merged: Record<string, string[]> = {};
         for (const r of results) Object.assign(merged, r.days);
         const list = Object.entries(merged)
-          .map(([date, count]) => ({ date, count }))
+          .map(([date, types]) => ({ date, count: types.length }))
           .sort((a, b) => (a.date < b.date ? 1 : -1));
         setEntries(list);
       })

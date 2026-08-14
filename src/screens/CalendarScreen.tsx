@@ -1,9 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
+import type { NoteType } from "../api";
+import { useI18n } from "../i18n";
 import { monthString, todayString } from "../date";
 import { cn } from "../ui/cn";
+import { IconCamera, IconMic, IconType } from "../icons";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+
+const TYPE_ICON: Record<NoteType, typeof IconType> = {
+  text: IconType,
+  audio: IconMic,
+  photo: IconCamera,
+};
 
 function firstWeekdayOffset(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
@@ -14,12 +23,13 @@ function daysInMonth(year: number, month: number): number {
 }
 
 export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {
+  const { t } = useI18n();
   const today = todayString();
   const [view, setView] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
   });
-  const [days, setDays] = useState<Record<string, number>>({});
+  const [days, setDays] = useState<Record<string, NoteType[]>>({});
 
   const month = monthString(view.year, view.month);
 
@@ -58,18 +68,18 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
         <button
           type="button"
           onClick={() => shiftMonth(-1)}
-          aria-label="Tháng trước"
+          aria-label={t.calendar_prev_month}
           className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
         >
           ‹
         </button>
         <span className="text-base font-semibold text-fg">
-          Tháng {view.month + 1} / {view.year}
+          {t.calendar_month(view.month + 1, view.year)}
         </span>
         <button
           type="button"
           onClick={() => shiftMonth(1)}
-          aria-label="Tháng sau"
+          aria-label={t.calendar_next_month}
           className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
         >
           ›
@@ -89,7 +99,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
 
         {cells.map(({ day, date }) => {
           const isToday = date === today;
-          const count = days[date] ?? 0;
+          const types = Array.from(new Set(days[date] ?? []));
 
           return (
             <button
@@ -97,13 +107,18 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
               type="button"
               onClick={() => onOpenDay(date)}
               className={cn(
-                "relative flex h-12 flex-col items-center justify-center gap-0.5 rounded-ui text-sm tabular outline-none transition",
+                "relative flex aspect-square flex-col items-center justify-center gap-1 rounded-2xl text-base tabular outline-none transition",
                 "focus-visible:ring-2 focus-visible:ring-ring active:bg-surface-muted",
-                isToday ? "font-semibold text-primary" : "text-fg",
+                isToday ? "bg-primary/10 font-semibold text-primary" : "text-fg",
               )}
             >
               <span>{day}</span>
-              {count > 0 && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
+              <span className="flex h-3 items-center gap-0.5">
+                {types.map((type) => {
+                  const Icon = TYPE_ICON[type];
+                  return <Icon key={type} size={11} className="text-fg-muted" />;
+                })}
+              </span>
             </button>
           );
         })}

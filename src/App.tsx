@@ -6,18 +6,20 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { TimelineScreen } from "./screens/TimelineScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
 import { IconCalendar, IconSettings, IconTimeline } from "./icons";
+import { useI18n } from "./i18n";
 
 type Tab = "calendar" | "timeline" | "settings";
 type Screen = { name: "root" } | { name: "day"; date: string } | { name: "compose"; date: string };
 
-const NAV_ITEMS: BottomNavItem<Tab>[] = [
-  { id: "calendar", label: "Lịch", icon: IconCalendar },
-  { id: "timeline", label: "Dòng TG", icon: IconTimeline },
-  { id: "settings", label: "Cài đặt", icon: IconSettings },
-];
-
 export function App() {
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("calendar");
+
+  const NAV_ITEMS: BottomNavItem<Tab>[] = [
+    { id: "calendar", label: t.nav_calendar, icon: IconCalendar },
+    { id: "timeline", label: t.nav_timeline, icon: IconTimeline },
+    { id: "settings", label: t.nav_settings, icon: IconSettings },
+  ];
   const [screen, setScreen] = useState<Screen>({ name: "root" });
 
   if (screen.name === "day") {
