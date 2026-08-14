@@ -3,6 +3,7 @@ import { api } from "./api";
 import { CalendarScreen } from "./screens/CalendarScreen";
 import { ComposeScreen } from "./screens/ComposeScreen";
 import { DayScreen } from "./screens/DayScreen";
+import { AlbumScreen } from "./screens/AlbumScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { PinLockScreen } from "./screens/PinLockScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
@@ -20,7 +21,8 @@ type Screen =
   | { name: "root" }
   | { name: "day"; date: string }
   | { name: "compose"; date: string }
-  | { name: "trash" };
+  | { name: "trash" }
+  | { name: "album" };
 type Auth = { status: "checking" } | { status: "anon" } | { status: "authed" };
 
 const SHARE_PATH_RE = /^\/s\/([^/]+)/;
@@ -113,6 +115,10 @@ export function App() {
     return <TrashScreen onBack={() => setScreen({ name: "root" })} />;
   }
 
+  if (screen.name === "album") {
+    return <AlbumScreen onBack={() => setScreen({ name: "root" })} />;
+  }
+
   return (
     <div className="mx-auto max-w-md pb-20">
       {tab === "calendar" && (
@@ -121,7 +127,12 @@ export function App() {
       {tab === "timeline" && (
         <TimelineScreen onOpenDay={(date) => setScreen({ name: "day", date })} />
       )}
-      {tab === "settings" && <SettingsScreen onOpenTrash={() => setScreen({ name: "trash" })} />}
+      {tab === "settings" && (
+        <SettingsScreen
+          onOpenTrash={() => setScreen({ name: "trash" })}
+          onOpenAlbum={() => setScreen({ name: "album" })}
+        />
+      )}
 
       <BottomNav items={NAV_ITEMS} active={tab} onChange={setTab} />
     </div>

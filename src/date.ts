@@ -53,3 +53,19 @@ export function computeStreak(datesWithNotes: Set<string>): number {
   }
   return streak;
 }
+
+/** Chuỗi ngày liên tiếp DÀI NHẤT trong tập ngày đã cho (không nhất thiết kết
+ * thúc ở hôm nay) — dùng cho tổng kết năm, khác `computeStreak` (chỉ tính
+ * chuỗi hiện tại). */
+export function computeLongestStreak(datesWithNotes: Set<string>): number {
+  let longest = 0;
+  let current = 0;
+  const sorted = [...datesWithNotes].sort();
+  let prev: string | null = null;
+  for (const date of sorted) {
+    current = prev && shiftDateString(prev, 1) === date ? current + 1 : 1;
+    longest = Math.max(longest, current);
+    prev = date;
+  }
+  return longest;
+}

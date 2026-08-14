@@ -6,7 +6,7 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { ThemeToggle } from "../ui/theme";
 import { Switch } from "../ui/Switch";
 import { Avatar } from "../ui/Avatar";
-import { Languages, BarChart3, FileJson, FileText, LogOut, Trash2 } from "lucide-react";
+import { Images, Languages, BarChart3, FileJson, FileText, LogOut, Trash2 } from "lucide-react";
 import {
   getReminderTime,
   isReminderEnabled,
@@ -31,12 +31,19 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(1)} ${units[i]}`;
 }
 
-export function SettingsScreen({ onOpenTrash }: { onOpenTrash: () => void }) {
+export function SettingsScreen({
+  onOpenTrash,
+  onOpenAlbum,
+}: {
+  onOpenTrash: () => void;
+  onOpenAlbum: () => void;
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const [exporting, setExporting] = useState<"json" | "markdown" | null>(null);
   const [stats, setStats] = useState<{ noteCount: number; mediaBytes: number } | null>(null);
   const [me, setMe] = useState<{ email: string; name: string } | null>(null);
+  const [words, setWords] = useState<{ word: string; count: number }[]>([]);
   const [reminderOn, setReminderOn] = useState(isReminderEnabled);
   const [reminderTime, setReminderTimeState] = useState(getReminderTime);
   const [pinOn, setPinOn] = useState(isPinSet);
@@ -47,6 +54,7 @@ export function SettingsScreen({ onOpenTrash }: { onOpenTrash: () => void }) {
   useEffect(() => {
     api.stats().then(setStats).catch(() => {});
     api.me().then(setMe).catch(() => {});
+    api.words().then((r) => setWords(r.words)).catch(() => {});
   }, []);
 
   async function exportNotes(format: "json" | "markdown") {
@@ -194,6 +202,28 @@ export function SettingsScreen({ onOpenTrash }: { onOpenTrash: () => void }) {
           )}
         </div>
 
+        {words.length > 0 && (
+          <div className="rounded-ui border border-border bg-surface p-3">
+            <p className="mb-2 text-sm text-fg">{t.settings_words}</p>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              {words.map(({ word, count }) => {
+                const max = words[0].count;
+                const size = 0.75 + (count / max) * 0.75;
+                return (
+                  <span
+                    key={word}
+                    style={{ fontSize: `${size}rem` }}
+                    className="font-medium text-fg-muted"
+                    title={String(count)}
+                  >
+                    {word}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={onOpenTrash}
@@ -202,6 +232,17 @@ export function SettingsScreen({ onOpenTrash }: { onOpenTrash: () => void }) {
           <span className="flex items-center gap-2 text-sm text-fg">
             <Trash2 className="h-4 w-4 text-fg-muted" aria-hidden="true" />
             {t.settings_trash}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenAlbum}
+          className="flex w-full items-center justify-between rounded-ui border border-border bg-surface p-3 text-left"
+        >
+          <span className="flex items-center gap-2 text-sm text-fg">
+            <Images className="h-4 w-4 text-fg-muted" aria-hidden="true" />
+            {t.settings_album}
           </span>
         </button>
 

@@ -8,14 +8,14 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { cn } from "../ui/cn";
-import { ArrowLeft, Camera, Mic, Square, Type } from "lucide-react";
+import { ArrowLeft, Camera, MapPin, Mic, Square, Type, X } from "lucide-react";
 import { compressImage } from "../lib/compressImage";
 
 const AUTOSAVE_DELAY_MS = 1500;
 
 // Note text mới tự lưu ngay lúc gõ (POST lần đầu, PUT các lần sau) — không
 // còn nút "Lưu" tay, đóng màn hình (nút back) là xong, note đã nằm trong DB.
-function TextComposer({ date, mood }: { date: string; mood: Mood | null }) {
+function TextComposer({ date, mood, location }: { date: string; mood: Mood | null; location: string }) {
   const { t } = useI18n();
   const toast = useToast();
   const [text, setText] = useState("");
@@ -33,7 +33,7 @@ function TextComposer({ date, mood }: { date: string; mood: Mood | null }) {
     try {
       const r = noteIdRef.current
         ? await api.updateText(noteIdRef.current, value)
-        : await api.createTextNote(date, value, mood);
+        : await api.createTextNote(date, value, mood, location);
       noteIdRef.current = r.note.id;
       setSavedAt(r.note.updatedAt);
       setStatus("saved");
@@ -164,21 +164,26 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
   );
 }
 
-function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; saving: boolean }) {
+function PhotoComposer({ onSave, saving }: { onSave: (files: File[]) => void; saving: boolean }) {
   const { t } = useI18n();
   const toast = useToast();
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [compressing, setCompressing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function onPick(picked: File | undefined) {
-    if (!picked) return;
+  async function onPick(picked: FileList | null) {
+    if (!picked || picked.length === 0) return;
     setCompressing(true);
     try {
-      setFile(await compressImage(picked));
-    } catch {
-      toast.error(t.compose_photo_compress_failed);
-      setFile(picked);
+      const compressed = await Promise.all(
+        Array.from(picked).map((f) =>
+          compressImage(f).catch(() => {
+            toast.error(t.compose_photo_compress_failed);
+            return f;
+          })
+        )
+      );
+      setFiles((prev) => [...prev, ...compressed].slice(0, 10));
     } finally {
       setCompressing(false);
     }
@@ -191,11 +196,12 @@ function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; savin
         type="file"
         accept="image/*"
         capture="environment"
+        multiple
         className="hidden"
-        onChange={(e) => onPick(e.target.files?.[0])}
+        onChange={(e) => onPick(e.target.files)}
       />
 
-      {!file && (
+      {files.length === 0 && (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -210,19 +216,77 @@ function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; savin
         </button>
       )}
 
-      {file && (
+      {files.length > 0 && (
         <div className="space-y-3">
-          <img src={URL.createObjectURL(file)} alt="" className="max-h-80 w-full rounded-ui object-cover" />
+          <div className="grid grid-cols-3 gap-2">
+            {files.map((f, i) => (
+              <div key={i} className="relative">
+                <img
+                  src={URL.createObjectURL(f)}
+                  alt=""
+                  className="aspect-square w-full rounded-ui object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-danger text-white"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {files.length < 10 && (
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={compressing}
+                className="grid aspect-square place-items-center rounded-ui border-2 border-dashed border-border text-fg-muted transition hover:bg-surface-muted disabled:opacity-60"
+              >
+                <Camera size={20} />
+              </button>
+            )}
+          </div>
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => setFile(null)}>
+            <Button variant="ghost" onClick={() => setFiles([])}>
               {t.compose_photo_retake}
             </Button>
-            <Button className="flex-1" onClick={() => onSave(file)} loading={saving}>
+            <Button className="flex-1" onClick={() => onSave(files)} loading={saving}>
               {t.compose_save}
             </Button>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function LocationInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(Boolean(value));
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mb-3 flex items-center gap-1.5 text-xs font-medium text-fg-muted transition hover:text-fg"
+      >
+        <MapPin size={13} />
+        {t.day_location}
+      </button>
+    );
+  }
+
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <MapPin size={14} className="shrink-0 text-fg-muted" />
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={t.day_location_placeholder}
+        className="min-w-0 flex-1 rounded-ui border border-border bg-surface px-3 py-1.5 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
     </div>
   );
 }
@@ -261,6 +325,7 @@ export function ComposeScreen({
   const [tab, setTab] = useState<NoteType>("text");
   const [saving, setSaving] = useState(false);
   const [mood, setMood] = useState<Mood | null>(null);
+  const [location, setLocation] = useState("");
 
   const TABS: { id: NoteType; label: string; icon: typeof Type }[] = [
     { id: "text", label: t.compose_tab_text, icon: Type },
@@ -268,10 +333,10 @@ export function ComposeScreen({
     { id: "photo", label: t.compose_tab_photo, icon: Camera },
   ];
 
-  async function saveMedia(type: "audio" | "photo", file: Blob, filename: string) {
+  async function saveMedia(type: "audio" | "photo", files: { blob: Blob; filename: string }[]) {
     setSaving(true);
     try {
-      await api.createMediaNote(date, type, file, filename, mood);
+      await api.createMediaNote(date, type, files, mood, location);
       toast.success(t.compose_saved);
       onSaved();
     } catch {
@@ -320,12 +385,24 @@ export function ComposeScreen({
 
         <div className="mt-4">
           <MoodPicker mood={mood} onChange={setMood} />
-          {tab === "text" && <TextComposer date={date} mood={mood} />}
+          <LocationInput value={location} onChange={setLocation} />
+          {tab === "text" && <TextComposer date={date} mood={mood} location={location} />}
           {tab === "audio" && (
-            <AudioComposer onSave={(blob) => saveMedia("audio", blob, "note.webm")} saving={saving} />
+            <AudioComposer
+              onSave={(blob) => saveMedia("audio", [{ blob, filename: "note.webm" }])}
+              saving={saving}
+            />
           )}
           {tab === "photo" && (
-            <PhotoComposer onSave={(file) => saveMedia("photo", file, file.name)} saving={saving} />
+            <PhotoComposer
+              onSave={(files) =>
+                saveMedia(
+                  "photo",
+                  files.map((f) => ({ blob: f, filename: f.name })),
+                )
+              }
+              saving={saving}
+            />
           )}
         </div>
       </div>

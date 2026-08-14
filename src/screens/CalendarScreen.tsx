@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
-import { monthString, parseDate, toDateString, todayString } from "../date";
+import { computeLongestStreak, monthString, parseDate, toDateString, todayString } from "../date";
 import { cn } from "../ui/cn";
 import { Camera, CalendarDays, ChevronLeft, ChevronRight, Grid3x3, Mic, PenLine, X } from "lucide-react";
 import { MoodEmoji } from "../moodEmojis";
@@ -41,11 +41,28 @@ function YearHeatmap({
 }) {
   const { t } = useI18n();
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [moods, setMoods] = useState<Record<string, string>>({});
+  const [lastYearCount, setLastYearCount] = useState<number | null>(null);
   const today = todayString();
 
   useEffect(() => {
-    api.year(String(year)).then((r) => setCounts(r.counts));
+    api.year(String(year)).then((r) => {
+      setCounts(r.counts);
+      setMoods(r.moods);
+    });
+    api.year(String(year - 1)).then((r) => {
+      setLastYearCount(Object.values(r.counts).reduce((a, b) => a + b, 0));
+    });
   }, [year]);
+
+  const totalNotes = Object.values(counts).reduce((a, b) => a + b, 0);
+  const longestStreak = computeLongestStreak(new Set(Object.keys(counts)));
+  const topMood = Object.entries(
+    Object.values(moods).reduce<Record<string, number>>((acc, m) => {
+      acc[m] = (acc[m] ?? 0) + 1;
+      return acc;
+    }, {}),
+  ).sort((a, b) => b[1] - a[1])[0]?.[0];
 
   function levelClass(count: number): string {
     if (count === 0) return "bg-surface-muted";
@@ -69,7 +86,26 @@ function YearHeatmap({
           </button>
         </div>
 
-        <div className="mt-2 grid grid-cols-3 gap-3">
+        <div className="mt-2 grid grid-cols-2 gap-2 rounded-ui border border-border bg-surface p-3 text-sm">
+          <div>
+            <p className="text-xs text-fg-muted">{t.year_stats_notes(totalNotes)}</p>
+            {lastYearCount !== null && (
+              <p className="text-xs text-fg-muted">
+                {t.year_stats_vs_last_year(year - 1)}: {lastYearCount}
+              </p>
+            )}
+          </div>
+          <div>
+            {topMood && (
+              <p className="flex items-center gap-1 text-xs text-fg-muted">
+                {t.year_stats_top_mood}: <MoodEmoji mood={topMood} size={16} />
+              </p>
+            )}
+            <p className="text-xs text-fg-muted">{t.year_stats_longest_streak(longestStreak)}</p>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 gap-3">
           {Array.from({ length: 12 }, (_, month) => {
             const offset = firstWeekdayOffset(year, month);
             const total = daysInMonth(year, month);

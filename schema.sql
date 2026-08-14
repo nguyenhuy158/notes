@@ -52,3 +52,10 @@ CREATE INDEX IF NOT EXISTS idx_notes_entries_share_token ON notes_entries(share_
 -- on-this-day/year) PHẢI thêm "AND deleted_at IS NULL", không thì note đã
 -- "xoá" vẫn hiện lại. Dọn vĩnh viễn qua /api/notes/:id/purge (Thùng rác).
 ALTER TABLE notes_entries ADD COLUMN deleted_at TEXT;
+
+-- Ảnh phụ cho note photo dạng gallery (slot 1..n) — media_key vẫn là ảnh
+-- chính (slot 0). Lưu dạng "key1,key2" như tags/extra_media khác trong bảng.
+ALTER TABLE notes_entries ADD COLUMN extra_media TEXT;
+
+-- Địa điểm tự do (text người dùng tự gõ, không phải toạ độ GPS).
+ALTER TABLE notes_entries ADD COLUMN location TEXT;

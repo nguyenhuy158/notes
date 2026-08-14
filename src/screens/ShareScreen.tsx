@@ -5,6 +5,8 @@ import { formatVi } from "../date";
 import { MoodEmoji } from "../moodEmojis";
 import { StickerGhost } from "../stickers";
 import { LoadingState } from "../ui/states";
+import { MapPin } from "lucide-react";
+import { cn } from "../ui/cn";
 
 /** Trang xem note đã chia sẻ — public, không cần đăng nhập. Route `/s/:token`
  * được đọc thẳng từ `location.pathname` (app không dùng URL router thật) và
@@ -37,6 +39,13 @@ export function ShareScreen({ token }: { token: string }) {
               <span>{formatVi(note.date)}</span>
             </div>
 
+            {note.location && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-fg-muted">
+                <MapPin size={12} />
+                {note.location}
+              </p>
+            )}
+
             {note.type === "text" && (
               <p className="mt-3 whitespace-pre-wrap text-sm text-fg">{note.text}</p>
             )}
@@ -45,12 +54,20 @@ export function ShareScreen({ token }: { token: string }) {
               <audio controls src={note.mediaUrl} className="mt-3 w-full" />
             )}
 
-            {note.type === "photo" && note.mediaUrl && (
-              <img
-                src={note.mediaUrl}
-                alt=""
-                className="mt-3 max-h-96 w-full rounded-ui object-cover"
-              />
+            {note.type === "photo" && note.mediaUrls.length > 0 && (
+              <div className={cn("mt-3 flex gap-2", note.mediaUrls.length > 1 ? "overflow-x-auto" : "")}>
+                {note.mediaUrls.map((url) => (
+                  <img
+                    key={url}
+                    src={url}
+                    alt=""
+                    className={cn(
+                      "rounded-ui object-cover",
+                      note.mediaUrls.length > 1 ? "h-64 w-64 shrink-0" : "max-h-96 w-full",
+                    )}
+                  />
+                ))}
+              </div>
             )}
 
             {note.type !== "text" && note.text && (

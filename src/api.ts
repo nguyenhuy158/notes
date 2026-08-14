@@ -13,7 +13,9 @@ export type Note = {
   pinned: boolean;
   tags: string[];
   shareToken: string | null;
+  location: string | null;
   mediaUrl: string | null;
+  mediaUrls: string[];
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -39,21 +41,30 @@ export const api = {
 
   search: (q: string) => request<{ notes: Note[] }>(`/api/search?q=${encodeURIComponent(q)}`),
 
-  createTextNote: (date: string, text: string, mood: Mood | null) => {
+  createTextNote: (date: string, text: string, mood: Mood | null, location: string) => {
     const form = new FormData();
     form.set("date", date);
     form.set("type", "text");
     form.set("text", text);
     if (mood) form.set("mood", mood);
+    if (location) form.set("location", location);
     return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
   },
 
-  createMediaNote: (date: string, type: "audio" | "photo", file: Blob, filename: string, mood: Mood | null) => {
+  // `files`: 1 file cho audio, 1-10 file cho photo (gallery nhiều ảnh/note).
+  createMediaNote: (
+    date: string,
+    type: "audio" | "photo",
+    files: { blob: Blob; filename: string }[],
+    mood: Mood | null,
+    location: string,
+  ) => {
     const form = new FormData();
     form.set("date", date);
     form.set("type", type);
-    form.set("file", file, filename);
+    for (const f of files) form.append("file", f.blob, f.filename);
     if (mood) form.set("mood", mood);
+    if (location) form.set("location", location);
     return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
   },
 
@@ -79,7 +90,24 @@ export const api = {
 
   purgeNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}/purge`, { method: "DELETE" }),
 
-  year: (year: string) => request<{ counts: Record<string, number> }>(`/api/year?year=${year}`),
+  year: (year: string) =>
+    request<{ counts: Record<string, number>; moods: Record<string, string> }>(`/api/year?year=${year}`),
+
+  words: () => request<{ words: { word: string; count: number }[] }>("/api/words"),
+
+  updateLocation: (id: string, location: string) =>
+    request<{ note: Note }>(`/api/notes/${id}/location`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ location }),
+    }),
+
+  moveNoteDate: (id: string, date: string) =>
+    request<{ note: Note }>(`/api/notes/${id}/date`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date }),
+    }),
 
   reorderNotes: (ids: string[]) =>
     request<{ ok: true }>("/api/notes/reorder", {
@@ -132,6 +160,18 @@ export const api = {
     if (res.status === 401) return null;
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.json();
+  },
+
+  // Dùng nội bộ cho Album ảnh (không trigger tải file như exportNotes).
+  exportJson: async (): Promise<Note[]> => {
+    const res = await fetch("/api/export?format=json");
+    if (res.status === 401) {
+      window.location.href = "/login";
+      throw new Error("unauthorized");
+    }
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const body = (await res.json()) as { notes: Note[] };
+    return body.notes;
   },
 
   exportNotes: async (format: "json" | "markdown") => {

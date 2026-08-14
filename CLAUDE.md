@@ -74,8 +74,25 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   cách khôi phục nếu quên (không đồng bộ server). Mở khoá tính theo phiên
   (`sessionStorage`), không cần nhập lại khi chuyển tab trong cùng 1 lần mở
   trình duyệt.
-- **Year heatmap**: endpoint riêng `GET /api/year` (1 query cho cả năm) thay
-  vì gọi `/api/days` 12 lần — rẻ hơn nhiều, xem `worker/src/index.ts`.
+- **Year heatmap + tổng kết năm**: endpoint riêng `GET /api/year` (1 query
+  cho cả năm, trả cả `counts` lẫn `moods`) thay vì gọi `/api/days` 12 lần —
+  rẻ hơn nhiều. Tổng kết năm (số note, mood nhiều nhất, chuỗi dài nhất, so
+  với năm trước) tính hết ở client từ response này, không có endpoint riêng.
+- **Gallery nhiều ảnh/note**: `media_key` vẫn là ảnh chính (slot 0),
+  `extra_media` (chuỗi `"key1,key2"`) là ảnh phụ. `GET /api/media/:id?slot=N`
+  và `GET /share/:token/media?slot=N` đọc theo slot. Tối đa 10 ảnh/note
+  (`MAX_EXTRA_PHOTOS`). Sửa/thay từng ảnh lẻ trong gallery CHƯA hỗ trợ —
+  `PUT /api/notes/:id/media` chỉ thay slot 0.
+- **Chuyển ngày note**: `PUT /api/notes/:id/date` — không giữ lịch sử ngày cũ,
+  đổi thẳng cột `date`.
+- **Địa điểm tự do** (`location`, text người tự gõ — KHÔNG xin quyền định vị
+  trình duyệt, không phải toạ độ GPS thật).
+- **Album ảnh in/PDF**: không thêm lib PDF, dùng `window.print()` +
+  `@media print` (xem `AlbumScreen.tsx`) — "Lưu dưới dạng PDF" có sẵn trong
+  hộp thoại in của trình duyệt.
+- **Từ hay dùng** (`GET /api/words`): tokenize đơn giản + stopword tiếng
+  Việt/Anh rất ngắn (không đầy đủ ngôn ngữ học) — chỉ để thống kê vui, không
+  phải NLP thật.
 
 ## Bảo mật: mime allow-list cho media
 

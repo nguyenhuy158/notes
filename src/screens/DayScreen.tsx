@@ -13,10 +13,12 @@ import { Fab } from "../ui/BottomNav";
 import { cn } from "../ui/cn";
 import {
   ArrowLeft,
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  MapPin,
   Pin,
   PinOff,
   Plus,
@@ -36,6 +38,7 @@ function NoteCard({
   onMove,
   onDeleted,
   onSaved,
+  onMovedToOtherDate,
 }: {
   note: Note;
   canMoveUp: boolean;
@@ -43,6 +46,7 @@ function NoteCard({
   onMove: (id: string, direction: -1 | 1) => void;
   onDeleted: (id: string) => void;
   onSaved: (note: Note) => void;
+  onMovedToOtherDate: (id: string) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -194,6 +198,34 @@ function NoteCard({
     }
   }
 
+  const [locationOpen, setLocationOpen] = useState(false);
+  const [locationDraft, setLocationDraft] = useState(note.location ?? "");
+
+  async function saveLocation() {
+    try {
+      const r = await api.updateLocation(note.id, locationDraft.trim());
+      onSaved(r.note);
+      setLocationOpen(false);
+    } catch {
+      toast.error(t.day_location_save_failed);
+    }
+  }
+
+  const [moveDateOpen, setMoveDateOpen] = useState(false);
+
+  async function moveDate(newDate: string) {
+    if (!newDate || newDate === note.date) {
+      setMoveDateOpen(false);
+      return;
+    }
+    try {
+      await api.moveNoteDate(note.id, newDate);
+      onMovedToOtherDate(note.id);
+    } catch {
+      toast.error(t.day_move_date_failed);
+    }
+  }
+
   return (
     <div className="rounded-ui border border-border bg-surface p-3">
       <div className="flex items-center justify-between">
@@ -235,6 +267,25 @@ function NoteCard({
             className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <Share2 size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setLocationOpen((v) => !v)}
+            aria-label={t.day_location}
+            className={cn(
+              "grid h-10 w-10 place-items-center rounded-ui transition hover:bg-surface-muted",
+              note.location ? "text-primary" : "text-fg-muted",
+            )}
+          >
+            <MapPin size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMoveDateOpen((v) => !v)}
+            aria-label={t.day_move_date}
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            <CalendarClock size={16} />
           </button>
           {canMoveUp && (
             <button
@@ -320,6 +371,45 @@ function NoteCard({
         </div>
       )}
 
+      {locationOpen && (
+        <div className="mt-2 flex items-center gap-2">
+          <MapPin size={14} className="shrink-0 text-fg-muted" />
+          <input
+            autoFocus
+            value={locationDraft}
+            onChange={(e) => setLocationDraft(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && saveLocation()}
+            placeholder={t.day_location_placeholder}
+            className="min-w-0 flex-1 rounded-ui border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <Button size="sm" onClick={saveLocation}>
+            {t.day_cancel}
+          </Button>
+        </div>
+      )}
+
+      {!locationOpen && note.location && (
+        <p className="mt-2 flex items-center gap-1 text-xs text-fg-muted">
+          <MapPin size={12} />
+          {note.location}
+        </p>
+      )}
+
+      {moveDateOpen && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            type="date"
+            autoFocus
+            defaultValue={note.date}
+            onChange={(e) => moveDate(e.target.value)}
+            className="min-w-0 flex-1 rounded-ui border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <Button size="sm" variant="ghost" onClick={() => setMoveDateOpen(false)}>
+            {t.day_cancel}
+          </Button>
+        </div>
+      )}
+
       {sharePanelOpen && (
         <div className="mt-2 flex items-center gap-2 rounded-ui bg-surface-muted p-2">
           <Share2 size={14} className="shrink-0 text-fg-muted" />
@@ -377,8 +467,27 @@ function NoteCard({
         <audio controls src={note.mediaUrl} className="mt-2 w-full" />
       )}
 
-      {note.type === "photo" && note.mediaUrl && (
-        <img src={note.mediaUrl} alt="" className="mt-2 max-h-80 w-full rounded-ui object-cover" />
+      {note.type === "photo" && note.mediaUrls.length > 0 && (
+        <div
+          className={cn(
+            "mt-2 flex gap-2",
+            note.mediaUrls.length > 1 ? "overflow-x-auto" : "",
+          )}
+        >
+          {note.mediaUrls.map((url) => (
+            <img
+              key={url}
+              src={url}
+              alt=""
+              className={cn(
+                "rounded-ui object-cover",
+                note.mediaUrls.length > 1
+                  ? "h-56 w-56 shrink-0"
+                  : "max-h-80 w-full",
+              )}
+            />
+          ))}
+        </div>
       )}
 
       {editing ? (
@@ -516,6 +625,7 @@ export function DayScreen({
                 });
               }}
               onDeleted={(id) => setNotes((prev) => (prev ?? []).filter((n) => n.id !== id))}
+              onMovedToOtherDate={(id) => setNotes((prev) => (prev ?? []).filter((n) => n.id !== id))}
               onSaved={(updated) =>
                 setNotes((prev) => (prev ?? []).map((n) => (n.id === updated.id ? updated : n)))
               }

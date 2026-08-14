@@ -28,6 +28,8 @@ type NoteRow = {
   tags: string | null;
   share_token: string | null;
   deleted_at: string | null;
+  extra_media: string | null;
+  location: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -72,7 +74,13 @@ function sanitizeTags(input: unknown): string[] {
   return [...seen];
 }
 
-function toNoteJson(row: NoteRow) {
+function parseExtraMedia(raw: string | null): string[] {
+  return raw ? raw.split(",").filter(Boolean) : [];
+}
+
+function toNoteJson(row: NoteRow, mediaBase = `/api/media/${row.id}`) {
+  const v = encodeURIComponent(row.updated_at);
+  const extraCount = parseExtraMedia(row.extra_media).length;
   return {
     id: row.id,
     date: row.date,
@@ -83,7 +91,13 @@ function toNoteJson(row: NoteRow) {
     pinned: row.pinned === 1,
     tags: parseTags(row.tags),
     shareToken: row.share_token,
-    mediaUrl: row.media_key ? `/api/media/${row.id}?v=${encodeURIComponent(row.updated_at)}` : null,
+    location: row.location,
+    mediaUrl: row.media_key ? `${mediaBase}?v=${v}` : null,
+    // Ảnh phụ (gallery nhiều ảnh/note) — slot 0 luôn là media_key chính,
+    // slot 1..n ứng với extra_media theo thứ tự lưu.
+    mediaUrls: row.media_key
+      ? [`${mediaBase}?v=${v}`, ...Array.from({ length: extraCount }, (_, i) => `${mediaBase}?slot=${i + 1}&v=${v}`)]
+      : [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -122,21 +136,60 @@ app.get("/api/days", async (c) => {
 
 const YEAR_RE = /^\d{4}$/;
 
-// Số note theo từng ngày trong CẢ NĂM, 1 query duy nhất — dùng cho heatmap
-// năm (Calendar), rẻ hơn nhiều so với gọi /api/days 12 lần.
+// Số note + mood theo từng ngày trong CẢ NĂM, 1 query duy nhất — dùng cho
+// heatmap năm và trang tổng kết năm (Calendar), rẻ hơn nhiều so với gọi
+// /api/days 12 lần.
 app.get("/api/year", async (c) => {
   const year = c.req.query("year") ?? "";
   if (!YEAR_RE.test(year)) return c.json({ error: "invalid year" }, 400);
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    `SELECT date, COUNT(*) as count FROM notes_entries
-     WHERE user_id = ? AND date LIKE ? AND deleted_at IS NULL GROUP BY date`
+    `SELECT date, mood, COUNT(*) as count FROM notes_entries
+     WHERE user_id = ? AND date LIKE ? AND deleted_at IS NULL GROUP BY date, mood`
   )
     .bind(userId, `${year}-%`)
-    .all<{ date: string; count: number }>();
+    .all<{ date: string; mood: string | null; count: number }>();
   const counts: Record<string, number> = {};
-  for (const row of results) counts[row.date] = row.count;
-  return c.json({ counts });
+  const moods: Record<string, string> = {};
+  for (const row of results) {
+    counts[row.date] = (counts[row.date] ?? 0) + row.count;
+    if (row.mood && !moods[row.date]) moods[row.date] = row.mood;
+  }
+  return c.json({ counts, moods });
+});
+
+// Từ hay dùng trong note văn bản của cả năm — thống kê vui, không phải tìm
+// kiếm. Tokenize đơn giản theo khoảng trắng/dấu câu, bỏ từ quá ngắn và một ít
+// hư từ tiếng Việt phổ biến (không đầy đủ, chỉ để đỡ rác kết quả).
+const STOPWORDS = new Set([
+  "và", "là", "của", "có", "không", "cho", "được", "một", "này", "thì",
+  "để", "với", "các", "đã", "khi", "như", "vì", "nên", "nữa", "cũng",
+  "the", "and", "for", "was", "were", "that", "this", "with", "have",
+]);
+
+app.get("/api/words", async (c) => {
+  const userId = c.get("userId");
+  const { results } = await c.env.DB.prepare(
+    "SELECT text FROM notes_entries WHERE user_id = ? AND type = 'text' AND deleted_at IS NULL"
+  )
+    .bind(userId)
+    .all<{ text: string }>();
+
+  const counts = new Map<string, number>();
+  for (const { text } of results) {
+    const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    for (const word of words) {
+      if (word.length < 3 || STOPWORDS.has(word)) continue;
+      counts.set(word, (counts.get(word) ?? 0) + 1);
+    }
+  }
+
+  const top = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 40)
+    .map(([word, count]) => ({ word, count }));
+
+  return c.json({ words: top });
 });
 
 // "Kỷ niệm": note trùng ngày/tháng ở các năm trước, để nhắc lại chuyện cũ
@@ -153,7 +206,7 @@ app.get("/api/on-this-day", async (c) => {
   )
     .bind(userId, date, monthDay)
     .all<NoteRow>();
-  return c.json({ notes: results.map(toNoteJson) });
+  return c.json({ notes: results.map((row) => toNoteJson(row)) });
 });
 
 // Tìm trong nội dung note văn bản hoặc trong tags (mọi loại note đều có thể
@@ -172,7 +225,7 @@ app.get("/api/search", async (c) => {
   )
     .bind(userId, like, like)
     .all<NoteRow>();
-  return c.json({ notes: results.map(toNoteJson) });
+  return c.json({ notes: results.map((row) => toNoteJson(row)) });
 });
 
 app.get("/api/notes", async (c) => {
@@ -185,39 +238,61 @@ app.get("/api/notes", async (c) => {
   )
     .bind(userId, date)
     .all<NoteRow>();
-  return c.json({ notes: results.map(toNoteJson) });
+  return c.json({ notes: results.map((row) => toNoteJson(row)) });
 });
+
+const MAX_EXTRA_PHOTOS = 9; // 1 chính + tối đa 9 phụ = gallery 10 ảnh/note
+const MAX_LOCATION_LENGTH = 80;
 
 app.post("/api/notes", async (c) => {
   const userId = c.get("userId");
-  const form = await c.req.parseBody();
+  // { all: true } để lấy đủ mọi file khi client gửi nhiều field "file" cùng
+  // tên (chọn nhiều ảnh cho 1 note) — mặc định Hono chỉ trả file cuối cùng.
+  const form = await c.req.parseBody({ all: true });
 
   const date = String(form.date ?? "");
   const type = String(form.type ?? "") as NoteType;
   const text = typeof form.text === "string" ? form.text : "";
-  const file = form.file instanceof File ? form.file : null;
+  const location = typeof form.location === "string" ? form.location.trim().slice(0, MAX_LOCATION_LENGTH) : "";
+  const filesRaw = form.file;
+  const files = (Array.isArray(filesRaw) ? filesRaw : filesRaw ? [filesRaw] : []).filter(
+    (f): f is File => f instanceof File
+  );
   const moodRaw = typeof form.mood === "string" ? form.mood : "";
   const mood = MOODS.has(moodRaw) ? moodRaw : null;
 
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   if (!NOTE_TYPES.includes(type)) return c.json({ error: "invalid type" }, 400);
   if (type === "text" && !text.trim()) return c.json({ error: "empty text" }, 400);
-  if ((type === "audio" || type === "photo") && !file) return c.json({ error: "missing file" }, 400);
+  if ((type === "audio" || type === "photo") && files.length === 0)
+    return c.json({ error: "missing file" }, 400);
+  if (type === "audio" && files.length > 1) return c.json({ error: "audio note takes 1 file" }, 400);
+  if (files.length > 1 + MAX_EXTRA_PHOTOS) return c.json({ error: "too many photos" }, 400);
   // Chặn mime giả mạo (vd "text/html") lọt vào R2 rồi bị trình duyệt render như
   // trang gốc khi GET /api/media trả lại — chỉ nhận đúng loại file cho từng type.
-  if ((type === "audio" || type === "photo") && !ALLOWED_MIME.has(file!.type))
+  if ((type === "audio" || type === "photo") && files.some((f) => !ALLOWED_MIME.has(f.type)))
     return c.json({ error: "invalid file type" }, 400);
 
   const id = crypto.randomUUID();
   let mediaKey: string | null = null;
   let mime: string | null = null;
   let finalText = text;
+  const extraKeys: string[] = [];
 
-  if (file) {
+  if (files.length > 0) {
+    const [primary, ...extra] = files;
     mediaKey = `${userId}/${id}`;
-    mime = file.type;
-    const bytes = await file.arrayBuffer();
+    mime = primary.type;
+    const bytes = await primary.arrayBuffer();
     await c.env.MEDIA.put(mediaKey, bytes, { httpMetadata: { contentType: mime } });
+
+    for (const [i, file] of extra.entries()) {
+      const key = `${userId}/${id}-${i + 1}`;
+      await c.env.MEDIA.put(key, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type },
+      });
+      extraKeys.push(key);
+    }
 
     // Tự chuyển ghi âm thành chữ (Workers AI Whisper) khi user không tự gõ
     // caption — tiện tìm kiếm/đọc lại sau. Lỗi ở bước này KHÔNG chặn lưu note
@@ -235,10 +310,10 @@ app.post("/api/notes", async (c) => {
   }
 
   await c.env.DB.prepare(
-    `INSERT INTO notes_entries (id, user_id, date, type, text, media_key, mime, mood)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO notes_entries (id, user_id, date, type, text, media_key, mime, mood, extra_media, location)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(id, userId, date, type, finalText, mediaKey, mime, mood)
+    .bind(id, userId, date, type, finalText, mediaKey, mime, mood, extraKeys.join(",") || null, location || null)
     .run();
 
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
@@ -307,6 +382,53 @@ app.put("/api/notes/:id/pin", async (c) => {
     "UPDATE notes_entries SET pinned = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
   )
     .bind(body.pinned ? 1 : 0, id)
+    .run();
+
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
+  return c.json({ note: toNoteJson(row!) });
+});
+
+// Gắn/sửa địa điểm tự do (text, không phải toạ độ — không xin quyền định vị
+// trình duyệt, đơn giản và không lộ vị trí thật nếu không muốn).
+app.put("/api/notes/:id/location", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const body = await c.req.json<{ location: string | null }>();
+  const location =
+    typeof body.location === "string" ? body.location.trim().slice(0, MAX_LOCATION_LENGTH) : "";
+
+  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  await c.env.DB.prepare(
+    "UPDATE notes_entries SET location = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
+  )
+    .bind(location || null, id)
+    .run();
+
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
+  return c.json({ note: toNoteJson(row!) });
+});
+
+// Chuyển note sang ngày khác — sửa nhầm ngày lúc tạo khỏi phải xoá tạo lại.
+app.put("/api/notes/:id/date", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const body = await c.req.json<{ date: string }>();
+  const date = body.date ?? "";
+  if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
+
+  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  await c.env.DB.prepare(
+    "UPDATE notes_entries SET date = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
+  )
+    .bind(date, id)
     .run();
 
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
@@ -452,7 +574,7 @@ app.get("/api/trash", async (c) => {
   )
     .bind(userId)
     .all<NoteRow>();
-  return c.json({ notes: results.map(toNoteJson) });
+  return c.json({ notes: results.map((row) => toNoteJson(row)) });
 });
 
 app.post("/api/notes/:id/restore", async (c) => {
@@ -486,15 +608,21 @@ app.delete("/api/notes/:id/purge", async (c) => {
   return c.json({ ok: true });
 });
 
+// slot=0 (mặc định) là ảnh/âm thanh chính (media_key); slot=1.. là ảnh phụ
+// trong gallery nhiều ảnh (extra_media, thứ tự lưu theo mảng đó).
 app.get("/api/media/:id", async (c) => {
   const id = c.req.param("id");
   const userId = c.get("userId");
+  const slot = Number(c.req.query("slot") ?? "0");
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
     .bind(id, userId)
     .first<NoteRow>();
   if (!row?.media_key) return c.json({ error: "not found" }, 404);
 
-  const object = await c.env.MEDIA.get(row.media_key);
+  const key = slot === 0 ? row.media_key : parseExtraMedia(row.extra_media)[slot - 1];
+  if (!key) return c.json({ error: "not found" }, 404);
+
+  const object = await c.env.MEDIA.get(key);
   if (!object) return c.json({ error: "not found" }, 404);
 
   // Chỉ tin content-type nếu đúng dạng ảnh/âm thanh đã kiểm khi upload; mọi
@@ -526,7 +654,7 @@ app.get("/api/export", async (c) => {
 
   if (format === "json") {
     const body = JSON.stringify(
-      { exportedAt: new Date().toISOString(), notes: results.map(toNoteJson) },
+      { exportedAt: new Date().toISOString(), notes: results.map((row) => toNoteJson(row)) },
       null,
       2
     );
@@ -556,7 +684,12 @@ app.get("/api/export", async (c) => {
       } else if (note.type === "audio") {
         md += `- **${time}** [audio](${origin}/api/media/${note.id})\n`;
       } else {
-        md += `- **${time}** ![photo](${origin}/api/media/${note.id})\n`;
+        const extraCount = parseExtraMedia(note.extra_media).length;
+        const photos = [
+          `${origin}/api/media/${note.id}`,
+          ...Array.from({ length: extraCount }, (_, i) => `${origin}/api/media/${note.id}?slot=${i + 1}`),
+        ];
+        md += `- **${time}** ${photos.map((url) => `![photo](${url})`).join(" ")}\n`;
       }
     }
     md += "\n";
@@ -610,23 +743,21 @@ app.get("/share/:token", async (c) => {
     .first<NoteRow>();
   if (!row) return c.json({ error: "not found" }, 404);
 
-  const note = toNoteJson(row);
-  return c.json({
-    note: {
-      ...note,
-      mediaUrl: row.media_key ? `/share/${token}/media` : null,
-    },
-  });
+  return c.json({ note: toNoteJson(row, `/share/${token}/media`) });
 });
 
 app.get("/share/:token/media", async (c) => {
   const token = c.req.param("token");
+  const slot = Number(c.req.query("slot") ?? "0");
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE share_token = ?")
     .bind(token)
     .first<NoteRow>();
   if (!row?.media_key) return c.json({ error: "not found" }, 404);
 
-  const object = await c.env.MEDIA.get(row.media_key);
+  const key = slot === 0 ? row.media_key : parseExtraMedia(row.extra_media)[slot - 1];
+  if (!key) return c.json({ error: "not found" }, 404);
+
+  const object = await c.env.MEDIA.get(key);
   if (!object) return c.json({ error: "not found" }, 404);
 
   const safeType = row.mime && ALLOWED_MIME.has(row.mime) ? row.mime : "application/octet-stream";
