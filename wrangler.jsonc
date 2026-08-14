@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "notes",
+  "main": "worker/src/index.ts",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "vars": {
+    "SSO_ISSUER": "https://auth.huyab.click"
+  },
+  "workers_dev": false,
+  "routes": [{ "pattern": "notes.huyab.click", "custom_domain": true }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "notes-db",
+      // Điền lại sau khi chạy: wrangler d1 create notes-db
+      "database_id": "REPLACE_ME_AFTER_D1_CREATE"
+    }
+  ]
+}

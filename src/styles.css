@@ -1,0 +1,6 @@
+@import "./styles/tokens.css";
+
+body {
+  background: var(--ui-bg);
+  color: var(--ui-fg);
+}
