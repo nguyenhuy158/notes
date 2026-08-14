@@ -15,6 +15,7 @@ import { isNetworkError, queueCreate, queueUpdate } from "../offlineQueue";
 import { useDictation } from "../dictation";
 import { PlaceAutocomplete } from "../ui/PlaceAutocomplete";
 import { TagChipInput } from "../ui/TagChipInput";
+import { AudioPlayer } from "../ui/AudioPlayer";
 
 const AUTOSAVE_DELAY_MS = 1500;
 
@@ -143,24 +144,43 @@ function TextComposer({
   );
 }
 
+// Trình duyệt mỗi nơi hỗ trợ codec khác nhau (Chrome/Firefox ưa webm/opus,
+// Safari chỉ ra mp4/aac) — ép cứng "audio/webm" như trước làm Safari ghi ra
+// file mà server/trình duyệt khác không đọc được đúng. Dò theo thứ tự, lấy
+// cái đầu tiên trình duyệt xác nhận hỗ trợ ghi.
+const AUDIO_MIME_CANDIDATES = ["audio/webm", "audio/mp4", "audio/ogg"];
+
+function pickSupportedMime(): string | undefined {
+  return AUDIO_MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type));
+}
+
 function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; saving: boolean }) {
   const { t } = useI18n();
   const toast = useToast();
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
 
+  useEffect(() => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
+
   async function start() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
+      const mimeType = pickSupportedMime();
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
       recorder.onstop = () => {
-        setBlob(new Blob(chunksRef.current, { type: "audio/webm" }));
+        setBlob(new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" }));
         stream.getTracks().forEach((t) => t.stop());
       };
       recorder.start();
@@ -168,7 +188,10 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
       setSeconds(0);
       setRecording(true);
       timerRef.current = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    } catch {
+    } catch (err) {
+      // getUserMedia đòi HTTPS (hoặc localhost) và quyền mic user chưa từ
+      // chối trước đó — báo rõ 2 lý do hay gặp nhất thay vì lỗi chung chung.
+      console.error("getUserMedia failed", err);
       toast.error(t.compose_mic_error);
     }
   }
@@ -181,6 +204,7 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
 
   function retake() {
     setBlob(null);
+    setPreviewUrl(null);
     setSeconds(0);
   }
 
@@ -215,7 +239,7 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
 
       {blob && (
         <div className="w-full space-y-3">
-          <audio controls src={URL.createObjectURL(blob)} className="w-full" />
+          {previewUrl && <AudioPlayer src={previewUrl} />}
           <div className="flex gap-2">
             <Button variant="ghost" onClick={retake}>
               {t.compose_retake}
@@ -459,7 +483,10 @@ export function ComposeScreen({
           {tab === "text" && <TextComposer date={date} mood={mood} location={location} tags={tags} />}
           {tab === "audio" && (
             <AudioComposer
-              onSave={(blob) => saveMedia("audio", [{ blob, filename: "note.webm" }])}
+              onSave={(blob) => {
+                const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+                saveMedia("audio", [{ blob, filename: `note.${ext}` }]);
+              }}
               saving={saving}
             />
           )}

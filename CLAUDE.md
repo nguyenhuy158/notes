@@ -147,6 +147,23 @@ phản chiếu lại y nguyên ở `Content-Type` khi serve từ R2 → XSS same
 Khi sửa 2 chỗ này, luôn giữ đồng bộ whitelist + `X-Content-Type-Options:
 nosniff` + ép `application/octet-stream` cho mime lạ.
 
+So mime qua `isAllowedMime()` (tách phần trước `;`), KHÔNG so `ALLOWED_MIME.has()`
+trực tiếp — `MediaRecorder` trả mime kèm codec (`audio/webm;codecs=opus`,
+`audio/mp4;codecs=mp4a.40.2`), so nguyên chuỗi luôn trượt khiến ghi âm bị
+worker từ chối "invalid file type" (đây là lý do note âm thanh từng không lưu
+được). Mime GỐC đầy đủ (kèm codec) vẫn được lưu/serve nguyên vẹn, chỉ bước so
+whitelist là cắt bớt.
+
+Ghi âm cũng tự dò mime hỗ trợ qua `MediaRecorder.isTypeSupported()`
+(`ComposeScreen.tsx`, danh sách `AUDIO_MIME_CANDIDATES`) thay vì ép cứng
+`audio/webm` — Safari không hỗ trợ webm, ép cứng làm ghi ra file mà chính
+trình duyệt đó cũng phát lại sai.
+
+Player audio dùng component tự vẽ `src/ui/AudioPlayer.tsx` (nút play/seek/
+thời gian riêng), KHÔNG dùng `<audio controls>` mặc định — giao diện gốc mỗi
+hệ điều hành/trình duyệt một kiểu, xấu và không theo được theme sáng/tối.
+Vẫn dùng thẻ `<audio>` thật để phát (ẩn UI gốc bằng cách bỏ `controls`).
+
 ## i18n
 
 `src/i18n.tsx` — VI mặc định, có EN. `Dict` type cố tình KHÔNG dùng

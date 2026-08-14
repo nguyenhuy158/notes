@@ -17,6 +17,7 @@ import { isPinSet, verifyPin } from "../pinLock";
 import { renderLite } from "../markdownLite";
 import { PlaceAutocomplete } from "../ui/PlaceAutocomplete";
 import { TagChipInput } from "../ui/TagChipInput";
+import { AudioPlayer } from "../ui/AudioPlayer";
 import {
   ArrowLeft,
   CalendarClock,
@@ -539,7 +540,7 @@ function NoteCard({
       )}
 
       {note.type === "audio" && note.mediaUrl && (
-        <audio controls src={note.mediaUrl} className="mt-2 w-full" />
+        <AudioPlayer src={note.mediaUrl} className="mt-2" />
       )}
 
       {note.type === "photo" && note.mediaUrls.length > 0 && (

@@ -8,6 +8,7 @@ import { useToast } from "../ui/Toast";
 import { StickerGhost } from "../stickers";
 import { ArrowLeft, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "../ui/cn";
+import { AudioPlayer } from "../ui/AudioPlayer";
 
 export function TrashScreen({ onBack }: { onBack: () => void }) {
   const { t } = useI18n();
@@ -89,7 +90,7 @@ export function TrashScreen({ onBack }: { onBack: () => void }) {
                 <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm text-fg">{note.text}</p>
               )}
               {note.type === "audio" && note.mediaUrl && (
-                <audio controls src={note.mediaUrl} className="mt-2 w-full" />
+                <AudioPlayer src={note.mediaUrl} className="mt-2" />
               )}
               {note.type === "photo" && note.mediaUrls.length > 0 && (
                 <div className={cn("mt-2 flex gap-2", note.mediaUrls.length > 1 ? "overflow-x-auto" : "")}>

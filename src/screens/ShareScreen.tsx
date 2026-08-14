@@ -7,6 +7,7 @@ import { StickerGhost } from "../stickers";
 import { LoadingState } from "../ui/states";
 import { MapPin } from "lucide-react";
 import { cn } from "../ui/cn";
+import { AudioPlayer } from "../ui/AudioPlayer";
 
 /** Trang xem note đã chia sẻ — public, không cần đăng nhập. Route `/s/:token`
  * được đọc thẳng từ `location.pathname` (app không dùng URL router thật) và
@@ -51,7 +52,7 @@ export function ShareScreen({ token }: { token: string }) {
             )}
 
             {note.type === "audio" && note.mediaUrl && (
-              <audio controls src={note.mediaUrl} className="mt-3 w-full" />
+              <AudioPlayer src={note.mediaUrl} className="mt-3" />
             )}
 
             {note.type === "photo" && note.mediaUrls.length > 0 && (

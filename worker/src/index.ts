@@ -53,6 +53,14 @@ const ALLOWED_MIME = new Set([
   "audio/ogg",
 ]);
 const NOTE_TYPES: NoteType[] = ["text", "audio", "photo"];
+
+// MediaRecorder trả mime kèm codec (vd "audio/webm;codecs=opus",
+// "audio/mp4;codecs=mp4a.40.2") — so khớp Set nguyên chuỗi sẽ luôn trượt vì
+// ALLOWED_MIME chỉ liệt kê type gốc. Chỉ dùng phần trước ";" để so whitelist,
+// nhưng VẪN lưu/serve mime gốc đầy đủ (đúng codec hơn cho trình duyệt phát).
+function isAllowedMime(mime: string): boolean {
+  return ALLOWED_MIME.has(mime.split(";")[0].trim());
+}
 const MAX_TAGS = 5;
 const MAX_TAG_LENGTH = 24;
 
@@ -375,7 +383,7 @@ app.post("/api/notes", async (c) => {
   if (files.length > 1 + MAX_EXTRA_PHOTOS) return c.json({ error: "too many photos" }, 400);
   // Chặn mime giả mạo (vd "text/html") lọt vào R2 rồi bị trình duyệt render như
   // trang gốc khi GET /api/media trả lại — chỉ nhận đúng loại file cho từng type.
-  if ((type === "audio" || type === "photo") && files.some((f) => !ALLOWED_MIME.has(f.type)))
+  if ((type === "audio" || type === "photo") && files.some((f) => !isAllowedMime(f.type)))
     return c.json({ error: "invalid file type" }, 400);
 
   const id = crypto.randomUUID();
@@ -648,7 +656,7 @@ app.put("/api/notes/:id/media", async (c) => {
   const form = await c.req.parseBody();
   const file = form.file instanceof File ? form.file : null;
   if (!file) return c.json({ error: "missing file" }, 400);
-  if (!ALLOWED_MIME.has(file.type)) return c.json({ error: "invalid file type" }, 400);
+  if (!isAllowedMime(file.type)) return c.json({ error: "invalid file type" }, 400);
 
   const mediaKey = existing.media_key ?? `${userId}/${id}`;
   await c.env.MEDIA.put(mediaKey, await file.arrayBuffer(), {
@@ -750,7 +758,7 @@ app.get("/api/media/:id", async (c) => {
   // Chỉ tin content-type nếu đúng dạng ảnh/âm thanh đã kiểm khi upload; mọi
   // giá trị khác (kể cả dữ liệu cũ lỡ lọt qua) rơi về octet-stream để trình
   // duyệt tải xuống thay vì render — chặn XSS qua content-type phản chiếu.
-  const safeType = row.mime && ALLOWED_MIME.has(row.mime) ? row.mime : "application/octet-stream";
+  const safeType = row.mime && isAllowedMime(row.mime) ? row.mime : "application/octet-stream";
 
   return new Response(object.body, {
     headers: {
@@ -886,7 +894,7 @@ app.get("/share/:token/media", async (c) => {
   const object = await c.env.MEDIA.get(key);
   if (!object) return c.json({ error: "not found" }, 404);
 
-  const safeType = row.mime && ALLOWED_MIME.has(row.mime) ? row.mime : "application/octet-stream";
+  const safeType = row.mime && isAllowedMime(row.mime) ? row.mime : "application/octet-stream";
   return new Response(object.body, {
     headers: {
       "Content-Type": safeType,
