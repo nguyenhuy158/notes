@@ -71,7 +71,10 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
   return (
     <div className="rounded-ui border border-border bg-surface p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-fg-muted">{formatTime(note.createdAt)}</span>
+        <span className="flex items-center gap-1.5 text-xs text-fg-muted">
+          {note.mood && <span className="text-base leading-none">{note.mood}</span>}
+          {formatTime(note.createdAt)}
+        </span>
         <button
           type="button"
           onClick={remove}

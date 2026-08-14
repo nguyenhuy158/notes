@@ -23,3 +23,9 @@ CREATE TABLE IF NOT EXISTS notes_entries (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notes_entries_user_date ON notes_entries(user_id, date);
+
+-- Cảm xúc lúc ghi note (emoji), optional, áp dụng cho mọi loại note.
+-- ALTER TABLE không hỗ trợ IF NOT EXISTS ở SQLite/D1 — chỉ chạy dòng này MỘT
+-- LẦN khi migrate bảng đã tồn tại (báo lỗi "duplicate column" nếu chạy lại,
+-- bỏ qua lỗi đó là an toàn).
+ALTER TABLE notes_entries ADD COLUMN mood TEXT;

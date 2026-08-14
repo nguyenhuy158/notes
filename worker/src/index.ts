@@ -21,9 +21,13 @@ type NoteRow = {
   text: string;
   media_key: string | null;
   mime: string | null;
+  mood: string | null;
   created_at: string;
   updated_at: string;
 };
+
+// Chỉ nhận đúng bộ emoji cố định — chặn user nhét text tuỳ ý vào cột mood.
+const MOODS = new Set(["😄", "🙂", "😐", "😔", "😡", "😴", "🥳", "😰"]);
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -49,6 +53,7 @@ function toNoteJson(row: NoteRow) {
     type: row.type,
     text: row.text,
     mime: row.mime,
+    mood: row.mood,
     mediaUrl: row.media_key ? `/api/media/${row.id}` : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -129,6 +134,8 @@ app.post("/api/notes", async (c) => {
   const type = String(form.type ?? "") as NoteType;
   const text = typeof form.text === "string" ? form.text : "";
   const file = form.file instanceof File ? form.file : null;
+  const moodRaw = typeof form.mood === "string" ? form.mood : "";
+  const mood = MOODS.has(moodRaw) ? moodRaw : null;
 
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   if (!NOTE_TYPES.includes(type)) return c.json({ error: "invalid type" }, 400);
@@ -152,10 +159,10 @@ app.post("/api/notes", async (c) => {
   }
 
   await c.env.DB.prepare(
-    `INSERT INTO notes_entries (id, user_id, date, type, text, media_key, mime)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO notes_entries (id, user_id, date, type, text, media_key, mime, mood)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(id, userId, date, type, text, mediaKey, mime)
+    .bind(id, userId, date, type, text, mediaKey, mime, mood)
     .run();
 
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();

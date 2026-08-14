@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { api, type NoteType } from "../api";
+import { api, MOODS, type Mood, type NoteType } from "../api";
 import { useI18n } from "../i18n";
 import { formatVi } from "../date";
 import { Button } from "../ui/Button";
@@ -179,6 +179,26 @@ function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; savin
   );
 }
 
+function MoodPicker({ mood, onChange }: { mood: Mood | null; onChange: (mood: Mood | null) => void }) {
+  return (
+    <div className="mb-4 flex flex-wrap gap-1.5">
+      {MOODS.map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => onChange(mood === m ? null : m)}
+          className={cn(
+            "grid h-9 w-9 place-items-center rounded-full text-lg transition",
+            mood === m ? "bg-primary/15 ring-2 ring-primary" : "hover:bg-surface-muted",
+          )}
+        >
+          {m}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function ComposeScreen({
   date,
   onBack,
@@ -192,6 +212,7 @@ export function ComposeScreen({
   const toast = useToast();
   const [tab, setTab] = useState<NoteType>("text");
   const [saving, setSaving] = useState(false);
+  const [mood, setMood] = useState<Mood | null>(null);
 
   const TABS: { id: NoteType; label: string; icon: typeof Type }[] = [
     { id: "text", label: t.compose_tab_text, icon: Type },
@@ -202,7 +223,7 @@ export function ComposeScreen({
   async function saveText(text: string) {
     setSaving(true);
     try {
-      await api.createTextNote(date, text);
+      await api.createTextNote(date, text, mood);
       toast.success(t.compose_saved);
       onSaved();
     } catch {
@@ -215,7 +236,7 @@ export function ComposeScreen({
   async function saveMedia(type: "audio" | "photo", file: Blob, filename: string) {
     setSaving(true);
     try {
-      await api.createMediaNote(date, type, file, filename);
+      await api.createMediaNote(date, type, file, filename, mood);
       toast.success(t.compose_saved);
       onSaved();
     } catch {
@@ -263,6 +284,7 @@ export function ComposeScreen({
         </div>
 
         <div className="mt-4">
+          <MoodPicker mood={mood} onChange={setMood} />
           {tab === "text" && <TextComposer onSave={saveText} saving={saving} />}
           {tab === "audio" && (
             <AudioComposer onSave={(blob) => saveMedia("audio", blob, "note.webm")} saving={saving} />

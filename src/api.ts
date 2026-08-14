@@ -1,11 +1,15 @@
 export type NoteType = "text" | "audio" | "photo";
 
+export const MOODS = ["😄", "🙂", "😐", "😔", "😡", "😴", "🥳", "😰"] as const;
+export type Mood = (typeof MOODS)[number];
+
 export type Note = {
   id: string;
   date: string;
   type: NoteType;
   text: string;
   mime: string | null;
+  mood: string | null;
   mediaUrl: string | null;
   createdAt: string;
   updatedAt: string;
@@ -30,19 +34,21 @@ export const api = {
 
   search: (q: string) => request<{ notes: Note[] }>(`/api/search?q=${encodeURIComponent(q)}`),
 
-  createTextNote: (date: string, text: string) => {
+  createTextNote: (date: string, text: string, mood: Mood | null) => {
     const form = new FormData();
     form.set("date", date);
     form.set("type", "text");
     form.set("text", text);
+    if (mood) form.set("mood", mood);
     return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
   },
 
-  createMediaNote: (date: string, type: "audio" | "photo", file: Blob, filename: string) => {
+  createMediaNote: (date: string, type: "audio" | "photo", file: Blob, filename: string, mood: Mood | null) => {
     const form = new FormData();
     form.set("date", date);
     form.set("type", type);
     form.set("file", file, filename);
+    if (mood) form.set("mood", mood);
     return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
   },
 

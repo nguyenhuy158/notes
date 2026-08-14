@@ -92,6 +92,10 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
     });
   };
 
+  const currentMonth = parseDate(today);
+  const isCurrentMonth = view.year === currentMonth.year && view.month === currentMonth.month;
+  const goToday = () => setView({ year: currentMonth.year, month: currentMonth.month });
+
   const offset = firstWeekdayOffset(view.year, view.month);
   const total = daysInMonth(view.year, view.month);
 
@@ -116,9 +120,15 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
         >
           ‹
         </button>
-        <span className="text-base font-semibold text-fg">
+        <button
+          type="button"
+          onClick={goToday}
+          disabled={isCurrentMonth}
+          className="text-base font-semibold text-fg disabled:cursor-default"
+        >
           {t.calendar_month(view.month + 1, view.year)}
-        </span>
+          {!isCurrentMonth && <span className="ml-1.5 text-xs font-medium text-primary">{t.calendar_go_today}</span>}
+        </button>
         <button
           type="button"
           onClick={() => shiftMonth(1)}
