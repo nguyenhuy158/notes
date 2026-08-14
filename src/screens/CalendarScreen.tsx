@@ -64,6 +64,84 @@ function OnThisDay({ onOpenDay }: { onOpenDay: (date: string) => void }) {
   );
 }
 
+function MonthYearPicker({
+  year,
+  month,
+  onPick,
+  onClose,
+}: {
+  year: number;
+  month: number;
+  onPick: (year: number, month: number) => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [pickYear, setPickYear] = useState(year);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-t-2xl bg-surface p-4 sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-fg">{t.calendar_pick_month_year}</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t.calendar_done}
+            className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="mt-3 flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => setPickYear((y) => y - 1)}
+            aria-label={t.calendar_prev_month}
+            className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="text-base font-semibold tabular text-fg">{pickYear}</span>
+          <button
+            type="button"
+            onClick={() => setPickYear((y) => y + 1)}
+            aria-label={t.calendar_next_month}
+            className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {Array.from({ length: 12 }, (_, i) => i).map((m) => {
+            const isSelected = pickYear === year && m === month;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => onPick(pickYear, m)}
+                className={cn(
+                  "rounded-ui py-2 text-sm font-medium tabular transition",
+                  isSelected ? "bg-primary text-primary-fg" : "hover:bg-surface-muted text-fg",
+                )}
+              >
+                {t.calendar_month_short(m + 1)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {
   const { t } = useI18n();
   const today = todayString();
@@ -73,6 +151,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
   });
   const [days, setDays] = useState<Record<string, NoteType[]>>({});
   const [moods, setMoods] = useState<Record<string, string>>({});
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const month = monthString(view.year, view.month);
 
@@ -127,7 +206,14 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
           ‹
         </button>
         <span className="flex items-center gap-1.5">
-          <span className="text-base font-semibold text-fg">{t.calendar_month(view.month + 1, view.year)}</span>
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            aria-label={t.calendar_pick_month_year}
+            className="rounded-ui px-1.5 py-0.5 text-base font-semibold text-fg transition hover:bg-surface-muted"
+          >
+            {t.calendar_month(view.month + 1, view.year)}
+          </button>
           {!isCurrentMonth && (
             <button
               type="button"
@@ -191,6 +277,18 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
           );
         })}
       </div>
+
+      {pickerOpen && (
+        <MonthYearPicker
+          year={view.year}
+          month={view.month}
+          onPick={(year, month) => {
+            setView({ year, month });
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }
