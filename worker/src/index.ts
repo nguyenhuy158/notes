@@ -55,6 +55,8 @@ function toNoteJson(row: NoteRow) {
   };
 }
 
+app.get("/api/version", (c) => c.json(BUILD_INFO));
+
 app.use("/api/*", async (c, next) => {
   const claims = await getClaimsFromRequest(c.req.raw, c.env.SSO_ISSUER);
   if (!claims) return c.json({ error: "unauthorized" }, 401);
