@@ -6,6 +6,7 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { ThemeToggle } from "../ui/theme";
 import { Switch } from "../ui/Switch";
 import { Avatar } from "../ui/Avatar";
+import { Languages, BarChart3, FileJson, FileText, LogOut } from "lucide-react";
 import {
   getReminderTime,
   isReminderEnabled,
@@ -92,12 +93,18 @@ export function SettingsScreen() {
           <ThemeToggle />
         </div>
         <div className="flex items-center justify-between rounded-ui border border-border bg-surface p-3">
-          <span className="text-sm text-fg">{t.settings_language}</span>
+          <span className="flex items-center gap-2 text-sm text-fg">
+            <Languages className="h-4 w-4 text-fg-muted" aria-hidden="true" />
+            {t.settings_language}
+          </span>
           <LanguageToggle />
         </div>
 
         <div className="flex items-center justify-between rounded-ui border border-border bg-surface p-3">
-          <span className="text-sm text-fg">{t.settings_stats}</span>
+          <span className="flex items-center gap-2 text-sm text-fg">
+            <BarChart3 className="h-4 w-4 text-fg-muted" aria-hidden="true" />
+            {t.settings_stats}
+          </span>
           <span className="text-sm text-fg-muted">
             {stats ? `${formatBytes(stats.mediaBytes)} · ${t.settings_stats_notes(stats.noteCount)}` : "…"}
           </span>

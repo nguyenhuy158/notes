@@ -318,7 +318,11 @@ export function DayScreen({
         {notes === null ? (
           <LoadingState />
         ) : notes.length === 0 ? (
-          <EmptyState title={t.day_empty_title} description={t.day_empty_desc} />
+          <EmptyState
+            icon={<StickerGhost size={40} />}
+            title={t.day_empty_title}
+            description={t.day_empty_desc}
+          />
         ) : (
           notes.map((note, index) => (
             <NoteCard
