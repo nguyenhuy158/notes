@@ -18,6 +18,7 @@ export function App() {
   const { t } = useI18n();
   const [auth, setAuth] = useState<Auth>({ status: "checking" });
   const [tab, setTab] = useState<Tab>("calendar");
+  const [screen, setScreen] = useState<Screen>({ name: "root" });
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +46,6 @@ export function App() {
     { id: "timeline", label: t.nav_timeline, icon: History },
     { id: "settings", label: t.nav_settings, icon: Settings },
   ];
-  const [screen, setScreen] = useState<Screen>({ name: "root" });
 
   if (screen.name === "day") {
     return (
