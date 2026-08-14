@@ -197,6 +197,64 @@ app.get("/api/media/:id", async (c) => {
   });
 });
 
+// Backup toàn bộ note của user hiện tại. Ảnh/âm thanh chỉ export dạng link
+// tới /api/media/:id (cần đăng nhập mới xem được), không export nguyên file —
+// nếu cần full offline backup thì tải R2 riêng.
+app.get("/api/export", async (c) => {
+  const userId = c.get("userId");
+  const format = c.req.query("format") === "markdown" ? "markdown" : "json";
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE user_id = ? ORDER BY date ASC, created_at ASC"
+  )
+    .bind(userId)
+    .all<NoteRow>();
+
+  if (format === "json") {
+    const body = JSON.stringify(
+      { exportedAt: new Date().toISOString(), notes: results.map(toNoteJson) },
+      null,
+      2
+    );
+    return new Response(body, {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="notes-export.json"',
+      },
+    });
+  }
+
+  const origin = new URL(c.req.url).origin;
+  const byDate = new Map<string, NoteRow[]>();
+  for (const row of results) {
+    const list = byDate.get(row.date) ?? [];
+    list.push(row);
+    byDate.set(row.date, list);
+  }
+
+  let md = "# Notes export\n\n";
+  for (const [date, notes] of byDate) {
+    md += `## ${date}\n\n`;
+    for (const note of notes) {
+      const time = note.created_at.slice(11, 16);
+      if (note.type === "text") {
+        md += `- **${time}** ${note.text}\n`;
+      } else if (note.type === "audio") {
+        md += `- **${time}** [audio](${origin}/api/media/${note.id})\n`;
+      } else {
+        md += `- **${time}** ![photo](${origin}/api/media/${note.id})\n`;
+      }
+    }
+    md += "\n";
+  }
+
+  return new Response(md, {
+    headers: {
+      "Content-Type": "text/markdown; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="notes-export.md"',
+    },
+  });
+});
+
 app.get("/login", (c) => {
   const url = new URL(c.req.url);
   return c.redirect(ssoUrl(c.env.SSO_ISSUER, "/login", `${url.origin}/`));

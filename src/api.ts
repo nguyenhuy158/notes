@@ -50,4 +50,20 @@ export const api = {
     }),
 
   deleteNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}`, { method: "DELETE" }),
+
+  exportNotes: async (format: "json" | "markdown") => {
+    const res = await fetch(`/api/export?format=${format}`);
+    if (res.status === 401) {
+      window.location.href = "/login";
+      throw new Error("unauthorized");
+    }
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = format === "json" ? "notes-export.json" : "notes-export.md";
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
