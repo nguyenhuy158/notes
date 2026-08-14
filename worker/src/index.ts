@@ -31,7 +31,7 @@ app.use("/api/*", async (c, next) => {
 app.get("/api/entries", async (c) => {
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    "SELECT date, substr(content, 1, 120) AS content, updated_at FROM entries WHERE user_id = ? ORDER BY date DESC"
+    "SELECT date, substr(content, 1, 120) AS content, updated_at FROM notes_entries WHERE user_id = ? ORDER BY date DESC"
   )
     .bind(userId)
     .all<Entry>();
@@ -43,7 +43,7 @@ app.get("/api/entries/:date", async (c) => {
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   const userId = c.get("userId");
   const row = await c.env.DB.prepare(
-    "SELECT date, content, updated_at FROM entries WHERE user_id = ? AND date = ?"
+    "SELECT date, content, updated_at FROM notes_entries WHERE user_id = ? AND date = ?"
   )
     .bind(userId, date)
     .first<Entry>();
@@ -58,7 +58,7 @@ app.put("/api/entries/:date", async (c) => {
   const content = typeof body.content === "string" ? body.content : "";
 
   await c.env.DB.prepare(
-    `INSERT INTO entries (user_id, date, content, updated_at)
+    `INSERT INTO notes_entries (user_id, date, content, updated_at)
      VALUES (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
      ON CONFLICT(user_id, date)
      DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at`
@@ -73,7 +73,7 @@ app.delete("/api/entries/:date", async (c) => {
   const date = c.req.param("date");
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   const userId = c.get("userId");
-  await c.env.DB.prepare("DELETE FROM entries WHERE user_id = ? AND date = ?").bind(userId, date).run();
+  await c.env.DB.prepare("DELETE FROM notes_entries WHERE user_id = ? AND date = ?").bind(userId, date).run();
   return c.json({ ok: true });
 });
 

@@ -40,13 +40,13 @@ export async function getClaimsFromRequest(request, issuer) {
  * @returns {Promise<string>} your app's internal user id
  */
 export async function resolveUserId(db, claims) {
-  const existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind(claims.email).first();
+  const existing = await db.prepare("SELECT id FROM notes_users WHERE email = ?").bind(claims.email).first();
   if (existing) return existing.id;
 
   const id = crypto.randomUUID();
   await db
     .prepare(
-      `INSERT INTO users (id, email, name, picture)
+      `INSERT INTO notes_users (id, email, name, picture)
        VALUES (?, ?, ?, ?)
        ON CONFLICT(email) DO NOTHING`
     )
@@ -55,7 +55,7 @@ export async function resolveUserId(db, claims) {
 
   // Two first-time requests from the same person can race; the loser reads
   // back the winner's row instead of creating a second user.
-  const row = await db.prepare("SELECT id FROM users WHERE email = ?").bind(claims.email).first();
+  const row = await db.prepare("SELECT id FROM notes_users WHERE email = ?").bind(claims.email).first();
   if (!row) throw new Error("Failed to create user for SSO session");
   return row.id;
 }

@@ -7,7 +7,8 @@ nhập qua [SSO chung](../sso) (`auth.huyab.click`), tự build/deploy khi push
 
 ## Kiến trúc
 
-- Mỗi ngày một ghi chú (`entries`, unique theo `user_id + date`).
+- Dùng chung D1 `db` với `sso` và các app khác — bảng có tiền tố `notes_`
+  (`notes_users`, `notes_entries`, unique theo `user_id + date`).
 - `/api/*` yêu cầu cookie `huyab_sso` hợp lệ (kiểm bằng JWKS của
   `auth.huyab.click`, xem `worker/src/sso-verifier.js` + `session.js`).
 - Chưa đăng nhập gọi API -> 401, front-end tự chuyển `/login`.
@@ -18,13 +19,13 @@ nhập qua [SSO chung](../sso) (`auth.huyab.click`), tự build/deploy khi push
 
 ```sh
 pnpm install
-npx wrangler d1 create notes-db     # copy database_id vào wrangler.jsonc
-pnpm db:migrate:remote               # tạo bảng users/entries trên D1 thật
+pnpm db:migrate:remote     # tạo notes_users/notes_entries trên D1 chung (db)
 cp .dev.vars.example .dev.vars
 ```
 
-Thêm authorized redirect: KHÔNG cần — SSO dùng chung một Google OAuth client,
-app mới không phải đụng Google Console.
+`wrangler.jsonc` đã trỏ sẵn vào D1 chung (`database_id` của `db`, giống
+`sso`), không cần tạo database riêng. Cũng không cần đụng Google Console —
+SSO dùng chung một OAuth client.
 
 ## Domain + build tự động
 

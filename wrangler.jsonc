@@ -19,9 +19,9 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "notes-db",
-      // Điền lại sau khi chạy: wrangler d1 create notes-db
-      "database_id": "REPLACE_ME_AFTER_D1_CREATE"
+      // Dùng chung D1 với sso và các app khác, nên bảng có tiền tố notes_.
+      "database_name": "db",
+      "database_id": "6eb9cfce-f6f3-4476-8e46-7c8e954d93c1"
     }
   ]
 }
