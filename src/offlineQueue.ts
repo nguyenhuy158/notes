@@ -11,7 +11,14 @@ import { api, type Mood } from "./api";
 
 const KEY = "offline-queue";
 
-type QueuedCreate = { kind: "create"; localId: string; date: string; text: string; mood: Mood | null };
+type QueuedCreate = {
+  kind: "create";
+  localId: string;
+  date: string;
+  text: string;
+  mood: Mood | null;
+  location: string;
+};
 type QueuedUpdate = { kind: "update"; noteId: string; text: string };
 type QueuedOp = QueuedCreate | QueuedUpdate;
 
@@ -34,46 +41,58 @@ export function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError;
 }
 
+// Note mới tự lưu debounce mỗi 1.5s — offline thì mỗi lần debounce đều fail,
+// nên dùng CÙNG 1 localId thay thế (không append) op cũ đã queue cho note đó,
+// tránh tạo nhiều bản trùng khi mạng có lại.
 export function queueCreate(op: Omit<QueuedCreate, "kind">): void {
-  writeQueue([...readQueue(), { kind: "create", ...op }]);
+  const queue = readQueue().filter((q) => !(q.kind === "create" && q.localId === op.localId));
+  writeQueue([...queue, { kind: "create", ...op }]);
 }
 
 export function queueUpdate(op: Omit<QueuedUpdate, "kind">): void {
-  writeQueue([...readQueue(), { kind: "update", ...op }]);
+  const queue = readQueue().filter((q) => !(q.kind === "update" && q.noteId === op.noteId));
+  writeQueue([...queue, { kind: "update", ...op }]);
 }
 
-export function hasQueuedOpsFor(localId: string): boolean {
-  return readQueue().some((op) => op.kind === "create" && op.localId === localId);
+function removeOp(queue: QueuedOp[], op: QueuedOp): QueuedOp[] {
+  const idx = queue.findIndex((q) =>
+    q.kind === "create" && op.kind === "create"
+      ? q.localId === op.localId
+      : q.kind === "update" && op.kind === "update"
+        ? q.noteId === op.noteId
+        : false,
+  );
+  if (idx === -1) return queue;
+  return [...queue.slice(0, idx), ...queue.slice(idx + 1)];
 }
 
 let flushing = false;
 
 /** Gọi lúc app mở lại và mỗi khi có sự kiện `online`. An toàn gọi nhiều lần —
  * tự bỏ qua nếu đang chạy dở, và dừng ngay khi gặp lỗi mạng khác (đỡ báo lỗi
- * dồn dập, quay lại thử ở lần flush kế). */
+ * dồn dập, quay lại thử ở lần flush kế). Đọc lại queue từ localStorage ở MỖI
+ * vòng lặp (không giữ snapshot) — user có thể gõ tiếp và enqueue thêm trong
+ * lúc đang flush, giữ snapshot cũ sẽ ghi đè mất phần vừa thêm đó. */
 export async function flushOfflineQueue(onSynced?: () => void): Promise<void> {
   if (flushing) return;
-  const queue = readQueue();
-  if (queue.length === 0) return;
   flushing = true;
 
   try {
-    const remaining = [...queue];
-    while (remaining.length > 0) {
-      const op = remaining[0];
+    while (true) {
+      const queue = readQueue();
+      if (queue.length === 0) break;
+      const op = queue[0];
       try {
         if (op.kind === "create") {
-          await api.createTextNote(op.date, op.text, op.mood, "");
+          await api.createTextNote(op.date, op.text, op.mood, op.location);
         } else {
           await api.updateText(op.noteId, op.text);
         }
-        remaining.shift();
-        writeQueue(remaining);
+        writeQueue(removeOp(readQueue(), op));
         onSynced?.();
       } catch (err) {
         if (isNetworkError(err)) break; // vẫn mất mạng, dừng thử phần còn lại
-        remaining.shift(); // lỗi khác (vd note đã bị xoá) — bỏ qua, không kẹt hàng đợi mãi
-        writeQueue(remaining);
+        writeQueue(removeOp(readQueue(), op)); // lỗi khác (vd note đã bị xoá) — bỏ qua, không kẹt hàng đợi mãi
       }
     }
   } finally {

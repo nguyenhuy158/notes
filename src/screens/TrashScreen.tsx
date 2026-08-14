@@ -7,6 +7,7 @@ import { EmptyState, LoadingState } from "../ui/states";
 import { useToast } from "../ui/Toast";
 import { StickerGhost } from "../stickers";
 import { ArrowLeft, RotateCcw, Trash2 } from "lucide-react";
+import { cn } from "../ui/cn";
 
 export function TrashScreen({ onBack }: { onBack: () => void }) {
   const { t } = useI18n();
@@ -90,8 +91,20 @@ export function TrashScreen({ onBack }: { onBack: () => void }) {
               {note.type === "audio" && note.mediaUrl && (
                 <audio controls src={note.mediaUrl} className="mt-2 w-full" />
               )}
-              {note.type === "photo" && note.mediaUrl && (
-                <img src={note.mediaUrl} alt="" className="mt-2 max-h-60 w-full rounded-ui object-cover" />
+              {note.type === "photo" && note.mediaUrls.length > 0 && (
+                <div className={cn("mt-2 flex gap-2", note.mediaUrls.length > 1 ? "overflow-x-auto" : "")}>
+                  {note.mediaUrls.map((url) => (
+                    <img
+                      key={url}
+                      src={url}
+                      alt=""
+                      className={cn(
+                        "rounded-ui object-cover",
+                        note.mediaUrls.length > 1 ? "h-40 w-40 shrink-0" : "max-h-60 w-full",
+                      )}
+                    />
+                  ))}
+                </div>
               )}
             </div>
           ))

@@ -464,7 +464,9 @@ app.put("/api/notes/:id/tags", async (c) => {
 app.post("/api/notes/:id/share", async (c) => {
   const id = c.req.param("id");
   const userId = c.get("userId");
-  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+  const existing = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE id = ? AND user_id = ? AND deleted_at IS NULL"
+  )
     .bind(id, userId)
     .first<NoteRow>();
   if (!existing) return c.json({ error: "not found" }, 404);
@@ -603,7 +605,10 @@ app.delete("/api/notes/:id/purge", async (c) => {
     .first<NoteRow>();
   if (!existing) return c.json({ error: "not found" }, 404);
 
-  if (existing.media_key) await c.env.MEDIA.delete(existing.media_key);
+  const keys = [existing.media_key, ...parseExtraMedia(existing.extra_media)].filter(
+    (k): k is string => Boolean(k)
+  );
+  await Promise.all(keys.map((k) => c.env.MEDIA.delete(k)));
   await c.env.DB.prepare("DELETE FROM notes_entries WHERE id = ?").bind(id).run();
   return c.json({ ok: true });
 });
@@ -717,7 +722,7 @@ app.get("/api/me", async (c) => {
 app.get("/api/stats", async (c) => {
   const userId = c.get("userId");
   const countRow = await c.env.DB.prepare(
-    "SELECT COUNT(*) as count FROM notes_entries WHERE user_id = ?"
+    "SELECT COUNT(*) as count FROM notes_entries WHERE user_id = ? AND deleted_at IS NULL"
   )
     .bind(userId)
     .first<{ count: number }>();
@@ -738,7 +743,9 @@ app.get("/api/stats", async (c) => {
 // toàn bộ dữ liệu user.
 app.get("/share/:token", async (c) => {
   const token = c.req.param("token");
-  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE share_token = ?")
+  const row = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE share_token = ? AND deleted_at IS NULL"
+  )
     .bind(token)
     .first<NoteRow>();
   if (!row) return c.json({ error: "not found" }, 404);
@@ -749,7 +756,9 @@ app.get("/share/:token", async (c) => {
 app.get("/share/:token/media", async (c) => {
   const token = c.req.param("token");
   const slot = Number(c.req.query("slot") ?? "0");
-  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE share_token = ?")
+  const row = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE share_token = ? AND deleted_at IS NULL"
+  )
     .bind(token)
     .first<NoteRow>();
   if (!row?.media_key) return c.json({ error: "not found" }, 404);

@@ -29,6 +29,10 @@ function TextComposer({ date, mood, location }: { date: string; mood: Mood | nul
   const textRef = useRef(text);
   textRef.current = text;
   const noteIdRef = useRef<string | null>(null);
+  // Id ổn định cho note MỚI này (chưa có noteId thật) — dùng làm khoá dedupe
+  // trong hàng đợi offline, để mỗi lần debounce fail khi mất mạng THAY THẾ
+  // op cũ thay vì cộng dồn thành nhiều note trùng.
+  const localIdRef = useRef(crypto.randomUUID());
 
   async function save() {
     const value = textRef.current;
@@ -44,7 +48,7 @@ function TextComposer({ date, mood, location }: { date: string; mood: Mood | nul
     } catch (err) {
       if (isNetworkError(err)) {
         if (noteIdRef.current) queueUpdate({ noteId: noteIdRef.current, text: value });
-        else queueCreate({ localId: crypto.randomUUID(), date, text: value, mood });
+        else queueCreate({ localId: localIdRef.current, date, text: value, mood, location });
         setStatus("queued");
       } else {
         toast.error(t.compose_save_failed);

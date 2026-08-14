@@ -31,13 +31,21 @@ export async function setPin(pin: string): Promise<void> {
   markUnlocked();
 }
 
+/** Xoá PIN đồng thời bỏ khoá riêng MỌI note — không thì note đã khoá riêng
+ * đứng im ở trạng thái "đã khoá" mãi mãi, và `verifyPin` (không còn hash để
+ * so) sẽ mở được bằng bất kỳ giá trị nào, kể cả rỗng — coi như hết khoá thật
+ * sự dù UI vẫn hiện blur, dễ hiểu lầm là còn an toàn. */
 export function clearPin(): void {
   localStorage.removeItem(HASH_KEY);
   sessionStorage.removeItem(UNLOCKED_KEY);
+  localStorage.removeItem("locked-note-ids");
 }
 
+/** Chưa từng đặt PIN thì KHÔNG có gì để xác thực — trả `false` (không phải
+ * `true`) để mọi chỗ gọi verifyPin (mở khoá app, xem note đã khoá riêng) đều
+ * an toàn mặc định, không vô tình mở khoá bằng PIN rỗng/bất kỳ. */
 export async function verifyPin(pin: string): Promise<boolean> {
   const hash = localStorage.getItem(HASH_KEY);
-  if (!hash) return true;
+  if (!hash) return false;
   return (await sha256Hex(pin)) === hash;
 }
