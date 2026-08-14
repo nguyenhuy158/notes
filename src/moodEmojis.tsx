@@ -148,7 +148,16 @@ export const MOOD_EMOJI: Record<Mood, ComponentType<FaceProps>> = {
   "😰": MoodAnxious,
 };
 
-export function MoodEmoji({ mood, size = 24, className }: { mood: Mood; size?: number; className?: string }) {
-  const Icon = MOOD_EMOJI[mood];
+export function MoodEmoji({
+  mood,
+  size = 24,
+  className,
+}: {
+  mood: Mood | string;
+  size?: number;
+  className?: string;
+}) {
+  const Icon = MOOD_EMOJI[mood as Mood];
+  if (!Icon) return null;
   return <Icon size={size} className={className} />;
 }

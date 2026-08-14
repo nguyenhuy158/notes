@@ -236,11 +236,11 @@ function MoodPicker({ mood, onChange }: { mood: Mood | null; onChange: (mood: Mo
           type="button"
           onClick={() => onChange(mood === m ? null : m)}
           className={cn(
-            "grid h-9 w-9 place-items-center rounded-full text-lg transition",
-            mood === m ? "bg-primary/15 ring-2 ring-primary" : "hover:bg-surface-muted",
+            "grid h-9 w-9 place-items-center rounded-full transition",
+            mood === m ? "ring-2 ring-primary" : "hover:bg-surface-muted",
           )}
         >
-          {m}
+          <MoodEmoji mood={m} size={28} />
         </button>
       ))}
     </div>

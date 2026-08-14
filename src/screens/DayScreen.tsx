@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Note } from "../api";
 import { useI18n } from "../i18n";
+import { MoodEmoji } from "../moodEmojis";
 import { formatTime, formatVi, parseDate, todayString, toDateString } from "../date";
 import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
@@ -76,7 +77,7 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
     <div className="rounded-ui border border-border bg-surface p-3">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-xs text-fg-muted">
-          {note.mood && <span className="text-base leading-none">{note.mood}</span>}
+          {note.mood && <MoodEmoji mood={note.mood} size={18} />}
           {formatTime(note.createdAt)}
         </span>
         <button

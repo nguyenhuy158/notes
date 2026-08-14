@@ -5,6 +5,7 @@ import { useI18n } from "../i18n";
 import { monthString, parseDate, todayString } from "../date";
 import { cn } from "../ui/cn";
 import { Camera, CalendarDays, Mic, PenLine } from "lucide-react";
+import { MoodEmoji } from "../moodEmojis";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
@@ -177,7 +178,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
             >
               <span>{day}</span>
               {mood ? (
-                <span className="text-sm leading-none">{mood}</span>
+                <MoodEmoji mood={mood} size={16} />
               ) : (
                 <span className="flex h-3 items-center gap-0.5">
                   {types.map((type) => {
