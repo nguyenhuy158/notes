@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Lock,
   MapPin,
+  MoreHorizontal,
   Pin,
   PinOff,
   Plus,
@@ -237,6 +238,7 @@ function NoteCard({
     }
   }
 
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [locked, setLocked] = useState(() => isNoteLocked(note.id));
   const [revealed, setRevealed] = useState(false);
 
@@ -305,52 +307,66 @@ function NoteCard({
           >
             {note.pinned ? <PinOff size={16} /> : <Pin size={16} />}
           </button>
-          <button
-            type="button"
-            onClick={() => setTagsOpen((v) => !v)}
-            aria-label={t.day_tags}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
-          >
-            <Tag size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={shareNote}
-            aria-label={t.day_share}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
-          >
-            <Share2 size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setLocationOpen((v) => !v)}
-            aria-label={t.day_location}
-            className={cn(
-              "grid h-10 w-10 place-items-center rounded-ui transition hover:bg-surface-muted",
-              note.location ? "text-primary" : "text-fg-muted",
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMoreMenuOpen((v) => !v)}
+              aria-label={t.day_more}
+              className={cn(
+                "grid h-10 w-10 place-items-center rounded-ui transition hover:bg-surface-muted",
+                note.location || locked ? "text-primary" : "text-fg-muted",
+              )}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            {moreMenuOpen && (
+              <div
+                className="absolute right-0 top-11 z-10 w-44 overflow-hidden rounded-ui border border-border bg-surface py-1 shadow-lg"
+                onClick={() => setMoreMenuOpen(false)}
+              >
+                <button
+                  type="button"
+                  onClick={() => setTagsOpen((v) => !v)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
+                >
+                  <Tag size={15} className="text-fg-muted" />
+                  {t.day_tags}
+                </button>
+                <button
+                  type="button"
+                  onClick={shareNote}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
+                >
+                  <Share2 size={15} className="text-fg-muted" />
+                  {t.day_share}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLocationOpen((v) => !v)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
+                >
+                  <MapPin size={15} className={note.location ? "text-primary" : "text-fg-muted"} />
+                  {t.day_location}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMoveDateOpen((v) => !v)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
+                >
+                  <CalendarClock size={15} className="text-fg-muted" />
+                  {t.day_move_date}
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleLock}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
+                >
+                  <Lock size={15} className={locked ? "text-primary" : "text-fg-muted"} />
+                  {locked ? t.day_unlock : t.day_lock}
+                </button>
+              </div>
             )}
-          >
-            <MapPin size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMoveDateOpen((v) => !v)}
-            aria-label={t.day_move_date}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
-          >
-            <CalendarClock size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={toggleLock}
-            aria-label={locked ? t.day_unlock : t.day_lock}
-            className={cn(
-              "grid h-10 w-10 place-items-center rounded-ui transition hover:bg-surface-muted",
-              locked ? "text-primary" : "text-fg-muted",
-            )}
-          >
-            <Lock size={16} />
-          </button>
+          </div>
           {canMoveUp && (
             <button
               type="button"
