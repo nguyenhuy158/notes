@@ -93,6 +93,25 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
 - **Từ hay dùng** (`GET /api/words`): tokenize đơn giản + stopword tiếng
   Việt/Anh rất ngắn (không đầy đủ ngôn ngữ học) — chỉ để thống kê vui, không
   phải NLP thật.
+- **Hàng đợi offline** (`src/offlineQueue.ts`): CHỈ text note (tạo/sửa), lưu
+  localStorage, tự đồng bộ khi có sự kiện `online` hoặc app mở lại
+  (`main.tsx`). Audio/photo KHÔNG được queue — lỗi mạng vẫn báo lỗi bình
+  thường (blob lớn, để trong scope này phức tạp hơn nhiều: cần IndexedDB +
+  giới hạn dung lượng). Phân biệt lỗi mạng thật (`TypeError` từ `fetch`) với
+  lỗi HTTP thường qua `isNetworkError()` — chỉ lỗi mạng mới queue.
+- **Định dạng chữ tối giản** (`src/markdownLite.tsx`): `**đậm**`/`*nghiêng*`/
+  `- ` đầu dòng, người dùng tự gõ cú pháp trong textarea thường — KHÔNG phải
+  editor WYSIWYG, chỉ phần hiển thị (không phải lúc sửa) mới render ra.
+- **Đọc để gõ chữ** (`src/dictation.ts`, Web Speech API): khác Whisper
+  transcribe audio đã ghi sẵn — cái này nhận diện SỐNG lúc đang gõ. Chỉ
+  Chrome/Edge hỗ trợ, `supported: false` thì ẩn nút (không báo lỗi).
+- **Khoá riêng từng note** (`src/noteLocks.ts`): danh sách id lưu
+  localStorage, KHÔNG đồng bộ thiết bị khác, KHÔNG mã hoá nội dung — chỉ
+  blur ở UI tới khi nhập đúng PIN đã đặt (`pinLock.ts`). Nếu chưa đặt PIN thì
+  chặn khoá, báo `day_lock_needs_pin`.
+- **Đổi màu chủ đạo** (`src/accentColor.ts`): chỉ đổi HUE trong oklch, giữ
+  nguyên lightness/chroma của theme gốc — set CSS variable `--ui-primary*`
+  trực tiếp qua `style`, áp TRƯỚC render trong `main.tsx` (tránh nháy màu).
 
 ## Bảo mật: mime allow-list cho media
 

@@ -11,6 +11,10 @@ import { StickerGhost } from "../stickers";
 import { useToast } from "../ui/Toast";
 import { Fab } from "../ui/BottomNav";
 import { cn } from "../ui/cn";
+import { isNetworkError, queueUpdate } from "../offlineQueue";
+import { isNoteLocked, setNoteLocked } from "../noteLocks";
+import { isPinSet, verifyPin } from "../pinLock";
+import { renderLite } from "../markdownLite";
 import {
   ArrowLeft,
   CalendarClock,
@@ -18,6 +22,7 @@ import {
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  Lock,
   MapPin,
   Pin,
   PinOff,
@@ -72,8 +77,14 @@ function NoteCard({
       onSaved(r.note);
       setDirty(false);
       setSavedAt(r.note.updatedAt);
-    } catch {
-      toast.error(t.day_save_failed);
+    } catch (err) {
+      if (isNetworkError(err)) {
+        queueUpdate({ noteId: noteRef.current.id, text: draftRef.current });
+        toast.info(t.offline_queued);
+        setDirty(false);
+      } else {
+        toast.error(t.day_save_failed);
+      }
     } finally {
       setBusy(false);
     }
@@ -226,6 +237,48 @@ function NoteCard({
     }
   }
 
+  const [locked, setLocked] = useState(() => isNoteLocked(note.id));
+  const [revealed, setRevealed] = useState(false);
+
+  async function toggleLock() {
+    if (!locked && !isPinSet()) {
+      toast.error(t.day_lock_needs_pin);
+      return;
+    }
+    if (!locked) {
+      setNoteLocked(note.id, true);
+      setLocked(true);
+      setRevealed(false);
+      return;
+    }
+    const pin = window.prompt(t.pin_enter_title) ?? "";
+    if (!(await verifyPin(pin))) {
+      toast.error(t.pin_wrong);
+      return;
+    }
+    setNoteLocked(note.id, false);
+    setLocked(false);
+  }
+
+  async function reveal() {
+    const pin = window.prompt(t.pin_enter_title) ?? "";
+    if (await verifyPin(pin)) setRevealed(true);
+    else toast.error(t.pin_wrong);
+  }
+
+  if (locked && !revealed) {
+    return (
+      <button
+        type="button"
+        onClick={reveal}
+        className="flex w-full items-center gap-2 rounded-ui border border-border bg-surface p-3 text-left text-sm text-fg-muted transition hover:bg-surface-muted"
+      >
+        <Lock size={16} />
+        {t.day_locked_tap_to_view}
+      </button>
+    );
+  }
+
   return (
     <div className="rounded-ui border border-border bg-surface p-3">
       <div className="flex items-center justify-between">
@@ -286,6 +339,17 @@ function NoteCard({
             className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <CalendarClock size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={toggleLock}
+            aria-label={locked ? t.day_unlock : t.day_lock}
+            className={cn(
+              "grid h-10 w-10 place-items-center rounded-ui transition hover:bg-surface-muted",
+              locked ? "text-primary" : "text-fg-muted",
+            )}
+          >
+            <Lock size={16} />
           </button>
           {canMoveUp && (
             <button
@@ -514,15 +578,12 @@ function NoteCard({
           </div>
         </div>
       ) : (
-        <p
+        <div
           onClick={() => setEditing(true)}
-          className={cn(
-            "mt-1 whitespace-pre-wrap text-sm",
-            note.text ? "text-fg" : "text-fg-muted",
-          )}
+          className={cn("mt-1 text-sm", note.text ? "text-fg" : "text-fg-muted")}
         >
-          {note.text || (note.type !== "text" ? t.day_add_caption : "")}
-        </p>
+          {note.text ? renderLite(note.text) : note.type !== "text" ? t.day_add_caption : ""}
+        </div>
       )}
     </div>
   );

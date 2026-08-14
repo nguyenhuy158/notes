@@ -8,19 +8,23 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { cn } from "../ui/cn";
-import { ArrowLeft, Camera, MapPin, Mic, Square, Type, X } from "lucide-react";
+import { ArrowLeft, Camera, MapPin, Mic, MicOff, Square, Type, X } from "lucide-react";
 import { compressImage } from "../lib/compressImage";
+import { randomPrompt } from "../writingPrompts";
+import { isNetworkError, queueCreate, queueUpdate } from "../offlineQueue";
+import { useDictation } from "../dictation";
 
 const AUTOSAVE_DELAY_MS = 1500;
 
 // Note text mới tự lưu ngay lúc gõ (POST lần đầu, PUT các lần sau) — không
 // còn nút "Lưu" tay, đóng màn hình (nút back) là xong, note đã nằm trong DB.
 function TextComposer({ date, mood, location }: { date: string; mood: Mood | null; location: string }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const toast = useToast();
   const [text, setText] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "queued">("idle");
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [prompt] = useState(() => randomPrompt(lang));
   const timerRef = useRef<number | null>(null);
   const textRef = useRef(text);
   textRef.current = text;
@@ -37,9 +41,15 @@ function TextComposer({ date, mood, location }: { date: string; mood: Mood | nul
       noteIdRef.current = r.note.id;
       setSavedAt(r.note.updatedAt);
       setStatus("saved");
-    } catch {
-      toast.error(t.compose_save_failed);
-      setStatus("idle");
+    } catch (err) {
+      if (isNetworkError(err)) {
+        if (noteIdRef.current) queueUpdate({ noteId: noteIdRef.current, text: value });
+        else queueCreate({ localId: crypto.randomUUID(), date, text: value, mood });
+        setStatus("queued");
+      } else {
+        toast.error(t.compose_save_failed);
+        setStatus("idle");
+      }
     }
   }
 
@@ -50,6 +60,8 @@ function TextComposer({ date, mood, location }: { date: string; mood: Mood | nul
     timerRef.current = window.setTimeout(save, AUTOSAVE_DELAY_MS);
   }
 
+  const dictation = useDictation(lang, (chunk) => onChange(`${textRef.current}${chunk}`));
+
   useEffect(() => {
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
@@ -58,20 +70,51 @@ function TextComposer({ date, mood, location }: { date: string; mood: Mood | nul
 
   return (
     <div className="space-y-2">
-      <Textarea
-        autoFocus
-        value={text}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => {
-          if (timerRef.current) window.clearTimeout(timerRef.current);
-          save();
-        }}
-        rows={10}
-        placeholder={t.compose_text_placeholder}
-      />
+      {!text && (
+        <button
+          type="button"
+          onClick={() => onChange(`${prompt}\n`)}
+          className="block w-full rounded-ui border border-dashed border-border p-2 text-left text-xs text-fg-muted transition hover:bg-surface-muted"
+        >
+          💭 {prompt}
+          <span className="ml-1 font-medium text-primary">{t.compose_prompt_use}</span>
+        </button>
+      )}
+
+      <div className="relative">
+        <Textarea
+          autoFocus
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => {
+            if (timerRef.current) window.clearTimeout(timerRef.current);
+            save();
+          }}
+          rows={10}
+          placeholder={t.compose_text_placeholder}
+        />
+        {dictation.supported && (
+          <button
+            type="button"
+            onClick={dictation.toggle}
+            aria-label={dictation.listening ? t.compose_dictate_stop : t.compose_dictate_start}
+            className={cn(
+              "absolute bottom-2 right-2 grid h-9 w-9 place-items-center rounded-full transition",
+              dictation.listening
+                ? "bg-danger text-white animate-pulse"
+                : "bg-surface-muted text-fg-muted hover:text-fg",
+            )}
+          >
+            {dictation.listening ? <MicOff size={16} /> : <Mic size={16} />}
+          </button>
+        )}
+      </div>
+
       <p className="text-xs text-fg-muted">
         {status === "saving" && t.day_saving}
         {status === "saved" && savedAt && t.day_saved_at(formatTime(savedAt))}
+        {status === "queued" && t.offline_queued}
+        {status === "idle" && !text && t.compose_format_hint}
       </p>
     </div>
   );

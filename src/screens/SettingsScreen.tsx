@@ -16,8 +16,10 @@ import {
   stopReminderLoop,
 } from "../reminder";
 import { clearPin, isPinSet, setPin } from "../pinLock";
+import { ACCENT_PRESETS, getAccentHue, setAccentHue } from "../accentColor";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
+import { cn } from "../ui/cn";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -44,6 +46,12 @@ export function SettingsScreen({
   const [stats, setStats] = useState<{ noteCount: number; mediaBytes: number } | null>(null);
   const [me, setMe] = useState<{ email: string; name: string } | null>(null);
   const [words, setWords] = useState<{ word: string; count: number }[]>([]);
+  const [accentHue, setAccentHueState] = useState(getAccentHue);
+
+  function pickAccent(hue: number) {
+    setAccentHue(hue);
+    setAccentHueState(hue);
+  }
   const [reminderOn, setReminderOn] = useState(isReminderEnabled);
   const [reminderTime, setReminderTimeState] = useState(getReminderTime);
   const [pinOn, setPinOn] = useState(isPinSet);
@@ -136,6 +144,25 @@ export function SettingsScreen({
         <div className="flex items-center justify-between rounded-ui border border-border bg-surface p-3">
           <span className="text-sm text-fg">{t.settings_theme}</span>
           <ThemeToggle />
+        </div>
+
+        <div className="rounded-ui border border-border bg-surface p-3">
+          <p className="mb-2 text-sm text-fg">{t.settings_accent}</p>
+          <div className="flex gap-2">
+            {ACCENT_PRESETS.map(({ id, hue }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => pickAccent(hue)}
+                aria-label={t[`accent_${id}` as keyof typeof t] as string}
+                style={{ background: `oklch(45% 0.13 ${hue})` }}
+                className={cn(
+                  "h-8 w-8 rounded-full transition",
+                  accentHue === hue && "ring-2 ring-offset-2 ring-offset-surface ring-fg",
+                )}
+              />
+            ))}
+          </div>
         </div>
         <div className="flex items-center justify-between rounded-ui border border-border bg-surface p-3">
           <span className="flex items-center gap-2 text-sm text-fg">
