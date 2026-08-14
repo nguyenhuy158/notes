@@ -1,14 +1,42 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n, LanguageToggle } from "../i18n";
 import { api } from "../api";
 import { useToast } from "../ui/Toast";
 import { HeaderBar } from "../ui/HeaderBar";
 import { ThemeToggle } from "../ui/theme";
+import { Switch } from "../ui/Switch";
+import {
+  getReminderTime,
+  isReminderEnabled,
+  setReminderEnabled,
+  setReminderTime,
+  startReminderLoop,
+  stopReminderLoop,
+} from "../reminder";
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i++;
+  }
+  return `${value.toFixed(1)} ${units[i]}`;
+}
 
 export function SettingsScreen() {
   const { t } = useI18n();
   const toast = useToast();
   const [exporting, setExporting] = useState<"json" | "markdown" | null>(null);
+  const [stats, setStats] = useState<{ noteCount: number; mediaBytes: number } | null>(null);
+  const [reminderOn, setReminderOn] = useState(isReminderEnabled);
+  const [reminderTime, setReminderTimeState] = useState(getReminderTime);
+
+  useEffect(() => {
+    api.stats().then(setStats).catch(() => {});
+  }, []);
 
   async function exportNotes(format: "json" | "markdown") {
     setExporting(format);
@@ -19,6 +47,27 @@ export function SettingsScreen() {
     } finally {
       setExporting(null);
     }
+  }
+
+  async function toggleReminder(next: boolean) {
+    if (next) {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        toast.error(t.settings_reminder_denied);
+        return;
+      }
+    }
+    setReminderEnabled(next);
+    setReminderOn(next);
+    stopReminderLoop();
+    if (next) startReminderLoop(t.settings_reminder);
+  }
+
+  function changeReminderTime(time: string) {
+    setReminderTimeState(time);
+    setReminderTime(time);
+    stopReminderLoop();
+    if (reminderOn) startReminderLoop(t.settings_reminder);
   }
 
   return (
@@ -32,6 +81,30 @@ export function SettingsScreen() {
         <div className="flex items-center justify-between rounded-ui border border-border bg-surface p-3">
           <span className="text-sm text-fg">{t.settings_language}</span>
           <LanguageToggle />
+        </div>
+
+        <div className="flex items-center justify-between rounded-ui border border-border bg-surface p-3">
+          <span className="text-sm text-fg">{t.settings_stats}</span>
+          <span className="text-sm text-fg-muted">
+            {stats ? `${formatBytes(stats.mediaBytes)} · ${t.settings_stats_notes(stats.noteCount)}` : "…"}
+          </span>
+        </div>
+
+        <div className="rounded-ui border border-border bg-surface p-3">
+          <Switch
+            checked={reminderOn}
+            onChange={toggleReminder}
+            label={t.settings_reminder}
+            description={t.settings_reminder_desc}
+          />
+          {reminderOn && (
+            <input
+              type="time"
+              value={reminderTime}
+              onChange={(e) => changeReminderTime(e.target.value)}
+              className="mt-2 w-full rounded-ui border border-border bg-surface px-3 py-2 text-sm text-fg"
+            />
+          )}
         </div>
 
         <div className="rounded-ui border border-border bg-surface p-3">

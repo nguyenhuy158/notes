@@ -31,3 +31,25 @@ export function formatTime(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
+
+function shiftDateString(value: string, deltaDays: number): string {
+  const { year, month, day } = parseDate(value);
+  const d = new Date(year, month, day + deltaDays);
+  return toDateString(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/**
+ * Số ngày liên tiếp có ghi note, tính lùi từ hôm nay. Cho phép hôm nay chưa
+ * ghi (chuỗi vẫn tính từ hôm qua) để không mất chuỗi giữa ngày lúc chưa viết.
+ */
+export function computeStreak(datesWithNotes: Set<string>): number {
+  let cursor = todayString();
+  if (!datesWithNotes.has(cursor)) cursor = shiftDateString(cursor, -1);
+
+  let streak = 0;
+  while (datesWithNotes.has(cursor)) {
+    streak += 1;
+    cursor = shiftDateString(cursor, -1);
+  }
+  return streak;
+}

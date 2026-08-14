@@ -26,6 +26,10 @@ export const api = {
 
   notes: (date: string) => request<{ notes: Note[] }>(`/api/notes?date=${date}`),
 
+  onThisDay: (date: string) => request<{ notes: Note[] }>(`/api/on-this-day?date=${date}`),
+
+  search: (q: string) => request<{ notes: Note[] }>(`/api/search?q=${encodeURIComponent(q)}`),
+
   createTextNote: (date: string, text: string) => {
     const form = new FormData();
     form.set("date", date);
@@ -50,6 +54,8 @@ export const api = {
     }),
 
   deleteNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}`, { method: "DELETE" }),
+
+  stats: () => request<{ noteCount: number; mediaBytes: number }>("/api/stats"),
 
   exportNotes: async (format: "json" | "markdown") => {
     const res = await fetch(`/api/export?format=${format}`);

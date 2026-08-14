@@ -28,6 +28,7 @@ export function App() {
         date={screen.date}
         onBack={() => setScreen({ name: "root" })}
         onCompose={(date) => setScreen({ name: "compose", date })}
+        onNavigate={(date) => setScreen({ name: "day", date })}
       />
     );
   }

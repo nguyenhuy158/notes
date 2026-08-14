@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Note } from "../api";
 import { useI18n } from "../i18n";
-import { formatTime, formatVi } from "../date";
+import { formatTime, formatVi, parseDate, todayString, toDateString } from "../date";
 import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
 import { EmptyState, LoadingState } from "../ui/states";
 import { useToast } from "../ui/Toast";
 import { Fab } from "../ui/BottomNav";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 const AUTOSAVE_DELAY_MS = 1500;
 
@@ -112,18 +112,27 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
   );
 }
 
+function shiftDate(date: string, deltaDays: number): string {
+  const { year, month, day } = parseDate(date);
+  const d = new Date(year, month, day + deltaDays);
+  return toDateString(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 export function DayScreen({
   date,
   onBack,
   onCompose,
+  onNavigate,
 }: {
   date: string;
   onBack: () => void;
   onCompose: (date: string) => void;
+  onNavigate: (date: string) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
   const [notes, setNotes] = useState<Note[] | null>(null);
+  const isToday = date === todayString();
 
   useEffect(() => {
     setNotes(null);
@@ -147,6 +156,27 @@ export function DayScreen({
           >
             <ArrowLeft size={18} />
           </button>
+        }
+        actions={
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onNavigate(shiftDate(date, -1))}
+              aria-label={t.day_prev}
+              className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate(shiftDate(date, 1))}
+              disabled={isToday}
+              aria-label={t.day_next}
+              className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:opacity-30"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         }
       />
 

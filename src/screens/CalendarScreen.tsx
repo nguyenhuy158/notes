@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import type { NoteType } from "../api";
+import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
-import { monthString, todayString } from "../date";
+import { monthString, parseDate, todayString } from "../date";
 import { cn } from "../ui/cn";
-import { Camera, Mic, Type } from "lucide-react";
+import { Camera, Mic, PenLine } from "lucide-react";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
-const TYPE_ICON: Record<NoteType, typeof Type> = {
-  text: Type,
+const TYPE_ICON: Record<NoteType, typeof PenLine> = {
+  text: PenLine,
   audio: Mic,
   photo: Camera,
 };
@@ -20,6 +20,47 @@ function firstWeekdayOffset(year: number, month: number): number {
 
 function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
+}
+
+function OnThisDay({ onOpenDay }: { onOpenDay: (date: string) => void }) {
+  const { t } = useI18n();
+  const [notes, setNotes] = useState<Note[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .onThisDay(todayString())
+      .then((r) => !cancelled && setNotes(r.notes))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (notes.length === 0) return null;
+
+  const thisYear = parseDate(todayString()).year;
+
+  return (
+    <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+      {notes.map((note) => {
+        const yearsAgo = thisYear - parseDate(note.date).year;
+        return (
+          <button
+            key={note.id}
+            type="button"
+            onClick={() => onOpenDay(note.date)}
+            className="w-40 shrink-0 rounded-2xl border border-border bg-surface p-3 text-left outline-none transition hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="block text-xs font-medium text-primary">{t.on_this_day_title(yearsAgo)}</span>
+            <span className="mt-1 block line-clamp-3 text-sm text-fg">
+              {note.type === "text" ? note.text : note.type === "audio" ? "🎙️" : "📷"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {
@@ -64,6 +105,8 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
 
   return (
     <div className="px-4 py-4">
+      <OnThisDay onOpenDay={onOpenDay} />
+
       <div className="flex items-center justify-between">
         <button
           type="button"

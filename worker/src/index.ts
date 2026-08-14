@@ -81,6 +81,34 @@ app.get("/api/days", async (c) => {
   return c.json({ days });
 });
 
+// "Kỷ niệm": note trùng ngày/tháng ở các năm trước, để nhắc lại chuyện cũ
+// trên trang chủ (giống tính năng "On this day" ở Google Photos/Facebook).
+app.get("/api/on-this-day", async (c) => {
+  const date = c.req.query("date") ?? "";
+  if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
+  const userId = c.get("userId");
+  const monthDay = date.slice(5); // "MM-DD"
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE user_id = ? AND date != ? AND substr(date, 6) = ? ORDER BY date DESC"
+  )
+    .bind(userId, date, monthDay)
+    .all<NoteRow>();
+  return c.json({ notes: results.map(toNoteJson) });
+});
+
+// Tìm trong nội dung note văn bản. Không tìm audio/photo vì không có text.
+app.get("/api/search", async (c) => {
+  const q = (c.req.query("q") ?? "").trim();
+  if (!q) return c.json({ notes: [] });
+  const userId = c.get("userId");
+  const { results } = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE user_id = ? AND type = 'text' AND text LIKE ? ESCAPE '\\' ORDER BY date DESC LIMIT 50"
+  )
+    .bind(userId, `%${q.replace(/[%_\\]/g, "\\$&")}%`)
+    .all<NoteRow>();
+  return c.json({ notes: results.map(toNoteJson) });
+});
+
 app.get("/api/notes", async (c) => {
   const date = c.req.query("date") ?? "";
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
@@ -253,6 +281,27 @@ app.get("/api/export", async (c) => {
       "Content-Disposition": 'attachment; filename="notes-export.md"',
     },
   });
+});
+
+// Dung lượng media (ảnh/âm thanh) của user trên R2. Không lưu size trong D1
+// nên tính trực tiếp từ R2.list theo prefix ${userId}/, phân trang bằng cursor.
+app.get("/api/stats", async (c) => {
+  const userId = c.get("userId");
+  const countRow = await c.env.DB.prepare(
+    "SELECT COUNT(*) as count FROM notes_entries WHERE user_id = ?"
+  )
+    .bind(userId)
+    .first<{ count: number }>();
+
+  let totalBytes = 0;
+  let cursor: string | undefined;
+  do {
+    const listed = await c.env.MEDIA.list({ prefix: `${userId}/`, cursor });
+    for (const obj of listed.objects) totalBytes += obj.size;
+    cursor = listed.truncated ? listed.cursor : undefined;
+  } while (cursor);
+
+  return c.json({ noteCount: countRow?.count ?? 0, mediaBytes: totalBytes });
 });
 
 app.get("/login", (c) => {
