@@ -33,7 +33,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   days: (month: string) =>
-    request<{ days: Record<string, NoteType[]>; moods: Record<string, string> }>(`/api/days?month=${month}`),
+    request<{
+      days: Record<string, NoteType[]>;
+      moods: Record<string, string>;
+      tags: Record<string, string[]>;
+    }>(`/api/days?month=${month}`),
 
   notes: (date: string) => request<{ notes: Note[] }>(`/api/notes?date=${date}`),
 
@@ -103,6 +107,13 @@ export const api = {
   tags: () => request<{ tags: { tag: string; count: number }[] }>("/api/tags"),
 
   notesByTag: (tag: string) => request<{ notes: Note[] }>(`/api/notes/by-tag?tag=${encodeURIComponent(tag)}`),
+
+  renameTag: (from: string, to: string) =>
+    request<{ ok: true; updated: number }>("/api/tags/rename", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to }),
+    }),
 
   updateLocation: (id: string, location: string) =>
     request<{ note: Note }>(`/api/notes/${id}/location`, {

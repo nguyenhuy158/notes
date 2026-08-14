@@ -281,7 +281,13 @@ function MonthYearPicker({
   );
 }
 
-export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {
+export function CalendarScreen({
+  onOpenDay,
+  onOpenTag,
+}: {
+  onOpenDay: (date: string) => void;
+  onOpenTag: (tag: string) => void;
+}) {
   const { t } = useI18n();
   const today = todayString();
   const [view, setView] = useState(() => {
@@ -290,6 +296,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
   });
   const [days, setDays] = useState<Record<string, NoteType[]>>({});
   const [moods, setMoods] = useState<Record<string, string>>({});
+  const [tagsByDate, setTagsByDate] = useState<Record<string, string[]>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
   const [yearViewOpen, setYearViewOpen] = useState(false);
 
@@ -303,12 +310,21 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
         if (cancelled) return;
         setDays(r.days);
         setMoods(r.moods);
+        setTagsByDate(r.tags);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [month]);
+
+  const tagCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const tags of Object.values(tagsByDate)) {
+      for (const tag of tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+  }, [tagsByDate]);
 
   const shiftMonth = (delta: number) => {
     setView((current) => {
@@ -447,6 +463,24 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
                 </span>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {tagCounts.length > 0 && (
+        <div className="mt-3 rounded-ui border border-border bg-surface p-3">
+          <p className="mb-2 text-xs font-medium text-fg-muted">{t.calendar_tag_stats_title}</p>
+          <div className="flex flex-wrap gap-2">
+            {tagCounts.map(([tag, count]) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => onOpenTag(tag)}
+                className="rounded-full bg-surface-muted px-2 py-1 text-xs font-medium text-fg-muted transition hover:bg-primary/15 hover:text-primary"
+              >
+                #{tag} · {count}
+              </button>
+            ))}
           </div>
         </div>
       )}

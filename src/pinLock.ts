@@ -7,6 +7,8 @@
  */
 const HASH_KEY = "pin-lock-hash";
 const UNLOCKED_KEY = "pin-lock-unlocked";
+const IDLE_MINUTES_KEY = "pin-idle-minutes";
+const HIDDEN_AT_KEY = "pin-hidden-at";
 
 async function sha256Hex(text: string): Promise<string> {
   const bytes = new TextEncoder().encode(text);
@@ -48,4 +50,36 @@ export async function verifyPin(pin: string): Promise<boolean> {
   const hash = localStorage.getItem(HASH_KEY);
   if (!hash) return false;
   return (await sha256Hex(pin)) === hash;
+}
+
+/** 0 = không bao giờ tự khoá (mặc định — chỉ khoá lại khi đóng hẳn tab). */
+export function getIdleLockMinutes(): number {
+  const raw = localStorage.getItem(IDLE_MINUTES_KEY);
+  const n = raw ? Number(raw) : 0;
+  return Number.isFinite(n) ? n : 0;
+}
+
+export function setIdleLockMinutes(minutes: number): void {
+  localStorage.setItem(IDLE_MINUTES_KEY, String(minutes));
+}
+
+/** Gọi lúc tab bị ẩn (rời app/tắt màn hình) — ghi lại mốc thời gian để lúc
+ * quay lại so sánh đã rời bao lâu. */
+export function markHidden(): void {
+  sessionStorage.setItem(HIDDEN_AT_KEY, String(Date.now()));
+}
+
+/** Gọi lúc tab hiện lại — nếu rời quá ngưỡng đã đặt thì khoá lại (xoá cờ đã
+ * mở khoá), trả `true` nếu vừa khoá lại để App.tsx cập nhật state hiển thị
+ * màn nhập PIN. Ngưỡng = 0 (mặc định) thì không bao giờ tự khoá theo cách
+ * này — vẫn có thể bị khoá khi đóng hẳn tab (sessionStorage mất theo tab). */
+export function lockIfIdleTooLong(): boolean {
+  const minutes = getIdleLockMinutes();
+  const hiddenAt = sessionStorage.getItem(HIDDEN_AT_KEY);
+  sessionStorage.removeItem(HIDDEN_AT_KEY);
+  if (minutes <= 0 || !hiddenAt || !isPinSet()) return false;
+  const elapsedMs = Date.now() - Number(hiddenAt);
+  if (elapsedMs < minutes * 60_000) return false;
+  sessionStorage.removeItem(UNLOCKED_KEY);
+  return true;
 }

@@ -125,7 +125,18 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   khớp — `GET /api/notes/by-tag`, match nguyên cụm qua
   `(',' || tags || ',') LIKE '%,tag,%'`, khác `/api/search` là LIKE mờ).
   Settings có màn "Quản lý nhãn" (`TagsScreen.tsx`) liệt kê hết nhãn + số
-  note, bấm vào cũng mở `TagNotesScreen`.
+  note, bấm vào cũng mở `TagNotesScreen`. Đổi tên nhãn qua `PUT
+  /api/tags/rename` — cập nhật MỌI note đang dùng nhãn đó cùng lúc (không
+  tách bảng nên phải tự đọc/ghi lại từng dòng, gộp Set nếu `to` trùng nhãn có
+  sẵn trên note). `TagNotesScreen` có nút xuất JSON/Markdown riêng cho đúng
+  nhãn đó (build client-side từ note đã fetch, không qua worker). `/api/days`
+  giờ trả thêm `tags` theo ngày (union nhãn trong ngày) — dùng cho thống kê
+  nhãn tháng này (Calendar) và bộ lọc nhãn/mood kết hợp ở Timeline.
+- **Tự khoá PIN khi rời tab quá lâu** (`pinLock.ts`: `markHidden`/
+  `lockIfIdleTooLong`, ngưỡng chọn ở Settings, mặc định 0 = tắt): dùng
+  `visibilitychange`, ghi mốc thời gian vào `sessionStorage` lúc tab ẩn, so
+  sánh lúc hiện lại. Không dùng `setInterval` đếm ngược nền — tốn pin, và
+  đằng nào cũng chỉ cần biết lúc quay lại có vượt ngưỡng không.
 
 ## Bảo mật: mime allow-list cho media
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { Camera, Mic, PenLine, Search } from "lucide-react";
-import { api } from "../api";
+import { api, MOODS } from "../api";
 import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
 import { MoodEmoji } from "../moodEmojis";
@@ -33,7 +33,7 @@ function pastMonths(count: number): string[] {
   return list;
 }
 
-type Entry = { date: string; types: NoteType[]; mood: string | null };
+type Entry = { date: string; types: NoteType[]; mood: string | null; tags: string[] };
 
 export function TimelineScreen({
   onOpenDay,
@@ -49,9 +49,19 @@ export function TimelineScreen({
   const [loadingMore, setLoadingMore] = useState(false);
   const [streak, setStreak] = useState(0);
   const [typeFilter, setTypeFilter] = useState<NoteType | null>(null);
+  const [moodFilter, setMoodFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [knownTags, setKnownTags] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Note[]>([]);
   const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    api
+      .tags()
+      .then((r) => setKnownTags(r.tags.map((t) => t.tag)))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,12 +71,19 @@ export function TimelineScreen({
         if (cancelled) return;
         const days: Record<string, NoteType[]> = {};
         const moods: Record<string, string> = {};
+        const tagsByDate: Record<string, string[]> = {};
         for (const r of results) {
           Object.assign(days, r.days);
           Object.assign(moods, r.moods);
+          Object.assign(tagsByDate, r.tags);
         }
         const list = Object.entries(days)
-          .map(([date, types]) => ({ date, types, mood: moods[date] ?? null }))
+          .map(([date, types]) => ({
+            date,
+            types,
+            mood: moods[date] ?? null,
+            tags: tagsByDate[date] ?? [],
+          }))
           .sort((a, b) => (a.date < b.date ? 1 : -1));
         setEntries(list);
         setStreak(computeStreak(new Set(Object.keys(days))));
@@ -105,8 +122,12 @@ export function TimelineScreen({
   }, [query]);
 
   const filteredEntries = useMemo(
-    () => (typeFilter ? entries.filter((e) => e.types.includes(typeFilter)) : entries),
-    [entries, typeFilter],
+    () =>
+      entries
+        .filter((e) => !typeFilter || e.types.includes(typeFilter))
+        .filter((e) => !moodFilter || e.mood === moodFilter)
+        .filter((e) => !tagFilter || e.tags.includes(tagFilter)),
+    [entries, typeFilter, moodFilter, tagFilter],
   );
 
   const grouped = useMemo(() => {
@@ -198,6 +219,38 @@ export function TimelineScreen({
                 </button>
               );
             })}
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {MOODS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMoodFilter((prev) => (prev === m ? null : m))}
+                className={cn(
+                  "grid h-8 w-8 place-items-center rounded-full border transition",
+                  moodFilter === m
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:bg-surface-muted",
+                )}
+              >
+                <MoodEmoji mood={m} size={18} />
+              </button>
+            ))}
+            {knownTags.length > 0 && (
+              <select
+                value={tagFilter ?? ""}
+                onChange={(e) => setTagFilter(e.target.value || null)}
+                className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-muted outline-none"
+              >
+                <option value="">#{t.timeline_filter_all}</option>
+                {knownTags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    #{tag}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {loading && (

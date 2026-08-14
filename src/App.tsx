@@ -15,7 +15,7 @@ import { TagNotesScreen } from "./screens/TagNotesScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
 import { Calendar, Settings, History } from "lucide-react";
 import { useI18n } from "./i18n";
-import { isUnlockedThisSession, markUnlocked } from "./pinLock";
+import { isUnlockedThisSession, lockIfIdleTooLong, markHidden, markUnlocked } from "./pinLock";
 import { todayString } from "./date";
 
 type Tab = "calendar" | "timeline" | "settings";
@@ -66,6 +66,20 @@ export function App() {
     window.history.replaceState(null, "", "/");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.status]);
+
+  // Tự khoá lại PIN nếu rời tab (đổi app khác, tắt màn hình) quá lâu — ngưỡng
+  // đặt ở Settings, mặc định 0 = tắt hẳn tính năng này.
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.hidden) {
+        markHidden();
+      } else if (lockIfIdleTooLong()) {
+        setLocked(true);
+      }
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
 
   if (auth.status === "checking") {
     return (
@@ -146,7 +160,10 @@ export function App() {
   return (
     <div className="mx-auto max-w-md pb-20">
       {tab === "calendar" && (
-        <CalendarScreen onOpenDay={(date) => setScreen({ name: "day", date })} />
+        <CalendarScreen
+          onOpenDay={(date) => setScreen({ name: "day", date })}
+          onOpenTag={(tag) => setScreen({ name: "tagNotes", tag })}
+        />
       )}
       {tab === "timeline" && (
         <TimelineScreen onOpenDay={(date) => setScreen({ name: "day", date })} />

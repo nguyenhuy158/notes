@@ -119,19 +119,23 @@ app.get("/api/days", async (c) => {
   if (!MONTH_RE.test(month)) return c.json({ error: "invalid month" }, 400);
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    `SELECT date, type, mood FROM notes_entries
-     WHERE user_id = ? AND date LIKE ? AND deleted_at IS NULL GROUP BY date, type, mood`
+    `SELECT date, type, mood, tags FROM notes_entries
+     WHERE user_id = ? AND date LIKE ? AND deleted_at IS NULL`
   )
     .bind(userId, `${month}-%`)
-    .all<{ date: string; type: NoteType; mood: string | null }>();
+    .all<{ date: string; type: NoteType; mood: string | null; tags: string | null }>();
   const days: Record<string, NoteType[]> = {};
   const moods: Record<string, string> = {};
+  const tagsByDate: Record<string, string[]> = {};
   for (const row of results) {
     (days[row.date] ??= []).push(row.type);
     // Chỉ giữ 1 mood đại diện/ngày (cái xuất hiện trước trong kết quả là đủ).
     if (row.mood && !moods[row.date]) moods[row.date] = row.mood;
+    const set = new Set(tagsByDate[row.date] ?? []);
+    for (const tag of parseTags(row.tags)) set.add(tag);
+    tagsByDate[row.date] = [...set];
   }
-  return c.json({ days, moods });
+  return c.json({ days, moods, tags: tagsByDate });
 });
 
 const YEAR_RE = /^\d{4}$/;
@@ -241,6 +245,38 @@ app.get("/api/tags", async (c) => {
     .map(([tag, count]) => ({ tag, count }));
 
   return c.json({ tags: list });
+});
+
+// Đổi tên 1 nhãn cho MỌI note đang dùng — gõ sai chính tả trước đó khỏi phải
+// sửa tay từng note. `to` trùng 1 nhãn khác đã có trên cùng note = gộp 2
+// nhãn làm 1 (Set khử trùng), không tách bảng riêng nên phải tự làm ở code.
+app.put("/api/tags/rename", async (c) => {
+  const userId = c.get("userId");
+  const body = await c.req.json<{ from: string; to: string }>();
+  const from = (body.from ?? "").trim();
+  const to = (body.to ?? "").trim().replace(/,/g, "").slice(0, MAX_TAG_LENGTH);
+  if (!from || !to) return c.json({ error: "invalid tag" }, 400);
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, tags FROM notes_entries
+     WHERE user_id = ? AND deleted_at IS NULL AND (',' || tags || ',') LIKE ? ESCAPE '\\'`
+  )
+    .bind(userId, `%,${from.replace(/[%_\\]/g, "\\$&")},%`)
+    .all<{ id: string; tags: string | null }>();
+
+  if (results.length === 0) return c.json({ ok: true, updated: 0 });
+
+  await c.env.DB.batch(
+    results.map((row) => {
+      const next = [...new Set(parseTags(row.tags).map((t) => (t === from ? to : t)))];
+      return c.env.DB.prepare("UPDATE notes_entries SET tags = ? WHERE id = ?").bind(
+        next.join(",") || null,
+        row.id
+      );
+    })
+  );
+
+  return c.json({ ok: true, updated: results.length });
 });
 
 // Mọi note gắn đúng 1 nhãn cụ thể (khớp nguyên cụm, không phải LIKE mờ như

@@ -5,7 +5,17 @@ import { formatVi } from "../date";
 import { HeaderBar } from "../ui/HeaderBar";
 import { EmptyState, LoadingState } from "../ui/states";
 import { StickerGhost } from "../stickers";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileJson, FileText } from "lucide-react";
+
+function downloadFile(content: string, filename: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 /** Danh sách note khớp đúng 1 nhãn — mở từ chip nhãn trên note (DayScreen)
  * hoặc từ màn "Quản lý nhãn" (Settings). Chỉ xem/nhảy tới ngày, không sửa
@@ -26,6 +36,28 @@ export function TagNotesScreen({
     api.notesByTag(tag).then((r) => setNotes(r.notes));
   }, [tag]);
 
+  function exportJson() {
+    if (!notes) return;
+    downloadFile(
+      JSON.stringify({ tag, exportedAt: new Date().toISOString(), notes }, null, 2),
+      `tag-${tag}.json`,
+      "application/json"
+    );
+  }
+
+  function exportMarkdown() {
+    if (!notes) return;
+    const origin = window.location.origin;
+    let md = `# #${tag}\n\n`;
+    for (const note of notes) {
+      md += `## ${formatVi(note.date)}\n\n`;
+      if (note.type === "text") md += `${note.text}\n\n`;
+      else if (note.type === "audio") md += `[audio](${origin}${note.mediaUrl})\n\n`;
+      else for (const url of note.mediaUrls) md += `![photo](${origin}${url})\n\n`;
+    }
+    downloadFile(md, `tag-${tag}.md`, "text/markdown");
+  }
+
   return (
     <div className="pb-24">
       <HeaderBar
@@ -39,6 +71,28 @@ export function TagNotesScreen({
           >
             <ArrowLeft size={18} />
           </button>
+        }
+        actions={
+          notes && notes.length > 0 ? (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={exportJson}
+                aria-label={t.tag_export_json}
+                className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+              >
+                <FileJson size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={exportMarkdown}
+                aria-label={t.tag_export_markdown}
+                className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+              >
+                <FileText size={18} />
+              </button>
+            </div>
+          ) : undefined
         }
       />
 

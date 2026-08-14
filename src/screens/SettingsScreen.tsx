@@ -15,7 +15,7 @@ import {
   startReminderLoop,
   stopReminderLoop,
 } from "../reminder";
-import { clearPin, isPinSet, setPin } from "../pinLock";
+import { clearPin, getIdleLockMinutes, isPinSet, setIdleLockMinutes, setPin } from "../pinLock";
 import { ACCENT_PRESETS, getAccentHue, setAccentHue } from "../accentColor";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
@@ -60,6 +60,7 @@ export function SettingsScreen({
   const [pinStep, setPinStep] = useState<"idle" | "setting" | "confirming">("idle");
   const [pinDraft, setPinDraft] = useState("");
   const [pinFirst, setPinFirst] = useState("");
+  const [idleMinutes, setIdleMinutesState] = useState(getIdleLockMinutes);
 
   useEffect(() => {
     api.stats().then(setStats).catch(() => {});
@@ -227,6 +228,27 @@ export function SettingsScreen({
               <Button size="sm" block disabled={pinDraft.length < 4} onClick={submitPinStep}>
                 {t.day_cancel}
               </Button>
+            </div>
+          )}
+          {pinOn && pinStep === "idle" && (
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-fg-muted">{t.settings_idle_lock}</span>
+              <select
+                value={idleMinutes}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setIdleLockMinutes(n);
+                  setIdleMinutesState(n);
+                }}
+                className="rounded-ui border border-border bg-surface px-2 py-1 text-xs text-fg"
+              >
+                <option value={0}>{t.idle_lock_never}</option>
+                {[1, 5, 15, 30].map((n) => (
+                  <option key={n} value={n}>
+                    {t.idle_lock_minutes(n)}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
         </div>
