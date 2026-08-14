@@ -16,6 +16,7 @@ import { isNoteLocked, setNoteLocked } from "../noteLocks";
 import { isPinSet, verifyPin } from "../pinLock";
 import { renderLite } from "../markdownLite";
 import { PlaceAutocomplete } from "../ui/PlaceAutocomplete";
+import { TagChipInput } from "../ui/TagChipInput";
 import {
   ArrowLeft,
   CalendarClock,
@@ -46,6 +47,7 @@ function NoteCard({
   onDeleted,
   onSaved,
   onMovedToOtherDate,
+  onOpenTag,
 }: {
   note: Note;
   canMoveUp: boolean;
@@ -54,6 +56,7 @@ function NoteCard({
   onDeleted: (id: string) => void;
   onSaved: (note: Note) => void;
   onMovedToOtherDate: (id: string) => void;
+  onOpenTag: (tag: string) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -158,17 +161,13 @@ function NoteCard({
   }
 
   const [tagsOpen, setTagsOpen] = useState(false);
-  const [tagsDraft, setTagsDraft] = useState(note.tags.join(", "));
+  const [tagsDraft, setTagsDraft] = useState<string[]>(note.tags);
 
-  async function saveTags() {
-    const tags = tagsDraft
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
+  async function saveTags(next: string[]) {
+    setTagsDraft(next);
     try {
-      const r = await api.updateTags(note.id, tags);
+      const r = await api.updateTags(note.id, next);
       onSaved(r.note);
-      setTagsOpen(false);
     } catch {
       toast.error(t.day_tags_save_failed);
     }
@@ -424,16 +423,9 @@ function NoteCard({
       </div>
 
       {tagsOpen && (
-        <div className="mt-2 flex items-center gap-2">
-          <input
-            autoFocus
-            value={tagsDraft}
-            onChange={(e) => setTagsDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && saveTags()}
-            placeholder={t.day_tags_placeholder}
-            className="min-w-0 flex-1 rounded-ui border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <Button size="sm" onClick={saveTags}>
+        <div className="mt-2 space-y-2">
+          <TagChipInput autoFocus tags={tagsDraft} onChange={saveTags} />
+          <Button size="sm" variant="ghost" onClick={() => setTagsOpen(false)}>
             {t.day_cancel}
           </Button>
         </div>
@@ -442,12 +434,14 @@ function NoteCard({
       {!tagsOpen && note.tags.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {note.tags.map((tag) => (
-            <span
+            <button
               key={tag}
-              className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted"
+              type="button"
+              onClick={() => onOpenTag(tag)}
+              className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted transition hover:bg-primary/15 hover:text-primary"
             >
               #{tag}
-            </span>
+            </button>
           ))}
         </div>
       )}
@@ -617,11 +611,13 @@ export function DayScreen({
   onBack,
   onCompose,
   onNavigate,
+  onOpenTag,
 }: {
   date: string;
   onBack: () => void;
   onCompose: (date: string) => void;
   onNavigate: (date: string) => void;
+  onOpenTag: (tag: string) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -704,6 +700,7 @@ export function DayScreen({
               }}
               onDeleted={(id) => setNotes((prev) => (prev ?? []).filter((n) => n.id !== id))}
               onMovedToOtherDate={(id) => setNotes((prev) => (prev ?? []).filter((n) => n.id !== id))}
+              onOpenTag={onOpenTag}
               onSaved={(updated) =>
                 setNotes((prev) => (prev ?? []).map((n) => (n.id === updated.id ? updated : n)))
               }

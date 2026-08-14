@@ -41,13 +41,14 @@ export const api = {
 
   search: (q: string) => request<{ notes: Note[] }>(`/api/search?q=${encodeURIComponent(q)}`),
 
-  createTextNote: (date: string, text: string, mood: Mood | null, location: string) => {
+  createTextNote: (date: string, text: string, mood: Mood | null, location: string, tags: string[] = []) => {
     const form = new FormData();
     form.set("date", date);
     form.set("type", "text");
     form.set("text", text);
     if (mood) form.set("mood", mood);
     if (location) form.set("location", location);
+    if (tags.length) form.set("tags", tags.join(","));
     return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
   },
 
@@ -58,6 +59,7 @@ export const api = {
     files: { blob: Blob; filename: string }[],
     mood: Mood | null,
     location: string,
+    tags: string[] = [],
   ) => {
     const form = new FormData();
     form.set("date", date);
@@ -65,6 +67,7 @@ export const api = {
     for (const f of files) form.append("file", f.blob, f.filename);
     if (mood) form.set("mood", mood);
     if (location) form.set("location", location);
+    if (tags.length) form.set("tags", tags.join(","));
     return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
   },
 
@@ -96,6 +99,10 @@ export const api = {
   words: () => request<{ words: { word: string; count: number }[] }>("/api/words"),
 
   searchPlaces: (q: string) => request<{ places: string[] }>(`/api/places?q=${encodeURIComponent(q)}`),
+
+  tags: () => request<{ tags: { tag: string; count: number }[] }>("/api/tags"),
+
+  notesByTag: (tag: string) => request<{ notes: Note[] }>(`/api/notes/by-tag?tag=${encodeURIComponent(tag)}`),
 
   updateLocation: (id: string, location: string) =>
     request<{ note: Note }>(`/api/notes/${id}/location`, {

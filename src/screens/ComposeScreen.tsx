@@ -14,12 +14,23 @@ import { randomPrompt } from "../writingPrompts";
 import { isNetworkError, queueCreate, queueUpdate } from "../offlineQueue";
 import { useDictation } from "../dictation";
 import { PlaceAutocomplete } from "../ui/PlaceAutocomplete";
+import { TagChipInput } from "../ui/TagChipInput";
 
 const AUTOSAVE_DELAY_MS = 1500;
 
 // Note text mới tự lưu ngay lúc gõ (POST lần đầu, PUT các lần sau) — không
 // còn nút "Lưu" tay, đóng màn hình (nút back) là xong, note đã nằm trong DB.
-function TextComposer({ date, mood, location }: { date: string; mood: Mood | null; location: string }) {
+function TextComposer({
+  date,
+  mood,
+  location,
+  tags,
+}: {
+  date: string;
+  mood: Mood | null;
+  location: string;
+  tags: string[];
+}) {
   const { t, lang } = useI18n();
   const toast = useToast();
   const [text, setText] = useState("");
@@ -42,14 +53,14 @@ function TextComposer({ date, mood, location }: { date: string; mood: Mood | nul
     try {
       const r = noteIdRef.current
         ? await api.updateText(noteIdRef.current, value)
-        : await api.createTextNote(date, value, mood, location);
+        : await api.createTextNote(date, value, mood, location, tags);
       noteIdRef.current = r.note.id;
       setSavedAt(r.note.updatedAt);
       setStatus("saved");
     } catch (err) {
       if (isNetworkError(err)) {
         if (noteIdRef.current) queueUpdate({ noteId: noteIdRef.current, text: value });
-        else queueCreate({ localId: localIdRef.current, date, text: value, mood, location });
+        else queueCreate({ localId: localIdRef.current, date, text: value, mood, location, tags });
         setStatus("queued");
       } else {
         toast.error(t.compose_save_failed);
@@ -72,6 +83,13 @@ function TextComposer({ date, mood, location }: { date: string; mood: Mood | nul
       if (timerRef.current) window.clearTimeout(timerRef.current);
     };
   }, []);
+
+  // Note đã tạo (noteIdRef có id) mà đổi tag sau đó (POST /api/notes chỉ áp
+  // tags lúc TẠO) — cần PUT riêng để tag mới cũng được lưu.
+  useEffect(() => {
+    if (noteIdRef.current) api.updateTags(noteIdRef.current, tags).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tags]);
 
   return (
     <div className="space-y-2">
@@ -374,6 +392,7 @@ export function ComposeScreen({
   const [saving, setSaving] = useState(false);
   const [mood, setMood] = useState<Mood | null>(null);
   const [location, setLocation] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
 
   const TABS: { id: NoteType; label: string; icon: typeof Type }[] = [
     { id: "text", label: t.compose_tab_text, icon: Type },
@@ -384,7 +403,7 @@ export function ComposeScreen({
   async function saveMedia(type: "audio" | "photo", files: { blob: Blob; filename: string }[]) {
     setSaving(true);
     try {
-      await api.createMediaNote(date, type, files, mood, location);
+      await api.createMediaNote(date, type, files, mood, location, tags);
       toast.success(t.compose_saved);
       onSaved();
     } catch {
@@ -434,7 +453,10 @@ export function ComposeScreen({
         <div className="mt-4">
           <MoodPicker mood={mood} onChange={setMood} />
           <LocationInput value={location} onChange={setLocation} />
-          {tab === "text" && <TextComposer date={date} mood={mood} location={location} />}
+          <div className="mb-4">
+            <TagChipInput tags={tags} onChange={setTags} />
+          </div>
+          {tab === "text" && <TextComposer date={date} mood={mood} location={location} tags={tags} />}
           {tab === "audio" && (
             <AudioComposer
               onSave={(blob) => saveMedia("audio", [{ blob, filename: "note.webm" }])}

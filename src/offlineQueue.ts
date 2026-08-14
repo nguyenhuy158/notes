@@ -18,6 +18,7 @@ type QueuedCreate = {
   text: string;
   mood: Mood | null;
   location: string;
+  tags: string[];
 };
 type QueuedUpdate = { kind: "update"; noteId: string; text: string };
 type QueuedOp = QueuedCreate | QueuedUpdate;
@@ -84,7 +85,7 @@ export async function flushOfflineQueue(onSynced?: () => void): Promise<void> {
       const op = queue[0];
       try {
         if (op.kind === "create") {
-          await api.createTextNote(op.date, op.text, op.mood, op.location);
+          await api.createTextNote(op.date, op.text, op.mood, op.location, op.tags);
         } else {
           await api.updateText(op.noteId, op.text);
         }

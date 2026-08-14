@@ -117,6 +117,15 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
 - **Đổi màu chủ đạo** (`src/accentColor.ts`): chỉ đổi HUE trong oklch, giữ
   nguyên lightness/chroma của theme gốc — set CSS variable `--ui-primary*`
   trực tiếp qua `style`, áp TRƯỚC render trong `main.tsx` (tránh nháy màu).
+- **Nâng cấp hệ thống nhãn**: editor dạng chip (`src/ui/TagChipInput.tsx`,
+  thay ô text thô cũ), gợi ý nhãn cũ qua `GET /api/tags` (đếm bằng cách tự
+  parse cột `tags`, không GROUP BY SQL được vì lưu dạng chuỗi). Gắn nhãn được
+  ngay lúc tạo note (POST `/api/notes` nhận field `tags` tuỳ chọn) thay vì
+  chỉ sau khi lưu. Bấm vào 1 chip nhãn mở `TagNotesScreen` (danh sách note
+  khớp — `GET /api/notes/by-tag`, match nguyên cụm qua
+  `(',' || tags || ',') LIKE '%,tag,%'`, khác `/api/search` là LIKE mờ).
+  Settings có màn "Quản lý nhãn" (`TagsScreen.tsx`) liệt kê hết nhãn + số
+  note, bấm vào cũng mở `TagNotesScreen`.
 
 ## Bảo mật: mime allow-list cho media
 

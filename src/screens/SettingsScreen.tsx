@@ -6,7 +6,7 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { ThemeToggle } from "../ui/theme";
 import { Switch } from "../ui/Switch";
 import { Avatar } from "../ui/Avatar";
-import { Images, Languages, BarChart3, FileJson, FileText, LogOut, Trash2 } from "lucide-react";
+import { Images, Languages, BarChart3, FileJson, FileText, LogOut, Tag as TagIcon, Trash2 } from "lucide-react";
 import {
   getReminderTime,
   isReminderEnabled,
@@ -36,9 +36,11 @@ function formatBytes(bytes: number): string {
 export function SettingsScreen({
   onOpenTrash,
   onOpenAlbum,
+  onOpenTags,
 }: {
   onOpenTrash: () => void;
   onOpenAlbum: () => void;
+  onOpenTags: () => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -250,6 +252,17 @@ export function SettingsScreen({
             </div>
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={onOpenTags}
+          className="flex w-full items-center justify-between rounded-ui border border-border bg-surface p-3 text-left"
+        >
+          <span className="flex items-center gap-2 text-sm text-fg">
+            <TagIcon className="h-4 w-4 text-fg-muted" aria-hidden="true" />
+            {t.settings_manage_tags}
+          </span>
+        </button>
 
         <button
           type="button"

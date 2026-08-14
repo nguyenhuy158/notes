@@ -10,6 +10,8 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { ShareScreen } from "./screens/ShareScreen";
 import { TimelineScreen } from "./screens/TimelineScreen";
 import { TrashScreen } from "./screens/TrashScreen";
+import { TagsScreen } from "./screens/TagsScreen";
+import { TagNotesScreen } from "./screens/TagNotesScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
 import { Calendar, Settings, History } from "lucide-react";
 import { useI18n } from "./i18n";
@@ -22,7 +24,9 @@ type Screen =
   | { name: "day"; date: string }
   | { name: "compose"; date: string }
   | { name: "trash" }
-  | { name: "album" };
+  | { name: "album" }
+  | { name: "tags" }
+  | { name: "tagNotes"; tag: string };
 type Auth = { status: "checking" } | { status: "anon" } | { status: "authed" };
 
 const SHARE_PATH_RE = /^\/s\/([^/]+)/;
@@ -97,6 +101,7 @@ export function App() {
         onBack={() => setScreen({ name: "root" })}
         onCompose={(date) => setScreen({ name: "compose", date })}
         onNavigate={(date) => setScreen({ name: "day", date })}
+        onOpenTag={(tag) => setScreen({ name: "tagNotes", tag })}
       />
     );
   }
@@ -119,6 +124,25 @@ export function App() {
     return <AlbumScreen onBack={() => setScreen({ name: "root" })} />;
   }
 
+  if (screen.name === "tags") {
+    return (
+      <TagsScreen
+        onBack={() => setScreen({ name: "root" })}
+        onOpenTag={(tag) => setScreen({ name: "tagNotes", tag })}
+      />
+    );
+  }
+
+  if (screen.name === "tagNotes") {
+    return (
+      <TagNotesScreen
+        tag={screen.tag}
+        onBack={() => setScreen({ name: "tags" })}
+        onOpenDay={(date) => setScreen({ name: "day", date })}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto max-w-md pb-20">
       {tab === "calendar" && (
@@ -131,6 +155,7 @@ export function App() {
         <SettingsScreen
           onOpenTrash={() => setScreen({ name: "trash" })}
           onOpenAlbum={() => setScreen({ name: "album" })}
+          onOpenTags={() => setScreen({ name: "tags" })}
         />
       )}
 

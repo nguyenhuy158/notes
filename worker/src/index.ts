@@ -219,6 +219,47 @@ app.get("/api/places", async (c) => {
   }
 });
 
+// Toàn bộ nhãn user đã dùng + số note mỗi nhãn — cho gợi ý tự động khi gõ
+// nhãn mới (đỡ gõ lại/gõ sai chính tả nhãn cũ) và màn "Quản lý nhãn" ở Cài
+// đặt. Tags lưu dạng "tag1,tag2" trong 1 cột nên phải tự đếm ở code, không
+// GROUP BY được thẳng bằng SQL.
+app.get("/api/tags", async (c) => {
+  const userId = c.get("userId");
+  const { results } = await c.env.DB.prepare(
+    "SELECT tags FROM notes_entries WHERE user_id = ? AND deleted_at IS NULL AND tags IS NOT NULL"
+  )
+    .bind(userId)
+    .all<{ tags: string }>();
+
+  const counts = new Map<string, number>();
+  for (const { tags } of results) {
+    for (const tag of parseTags(tags)) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+
+  const list = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([tag, count]) => ({ tag, count }));
+
+  return c.json({ tags: list });
+});
+
+// Mọi note gắn đúng 1 nhãn cụ thể (khớp nguyên cụm, không phải LIKE mờ như
+// /api/search) — dùng khi bấm vào 1 nhãn để xem lại hết note liên quan.
+app.get("/api/notes/by-tag", async (c) => {
+  const tag = (c.req.query("tag") ?? "").trim();
+  if (!tag) return c.json({ notes: [] });
+  const userId = c.get("userId");
+  const { results } = await c.env.DB.prepare(
+    `SELECT * FROM notes_entries
+     WHERE user_id = ? AND deleted_at IS NULL
+       AND (',' || tags || ',') LIKE ? ESCAPE '\\'
+     ORDER BY date DESC`
+  )
+    .bind(userId, `%,${tag.replace(/[%_\\]/g, "\\$&")},%`)
+    .all<NoteRow>();
+  return c.json({ notes: results.map((row) => toNoteJson(row)) });
+});
+
 // "Kỷ niệm": note trùng ngày/tháng ở các năm trước, để nhắc lại chuyện cũ
 // trên trang chủ (giống tính năng "On this day" ở Google Photos/Facebook).
 app.get("/api/on-this-day", async (c) => {
@@ -287,6 +328,7 @@ app.post("/api/notes", async (c) => {
   );
   const moodRaw = typeof form.mood === "string" ? form.mood : "";
   const mood = MOODS.has(moodRaw) ? moodRaw : null;
+  const tags = sanitizeTags(typeof form.tags === "string" ? form.tags.split(",") : []);
 
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   if (!NOTE_TYPES.includes(type)) return c.json({ error: "invalid type" }, 400);
@@ -337,10 +379,22 @@ app.post("/api/notes", async (c) => {
   }
 
   await c.env.DB.prepare(
-    `INSERT INTO notes_entries (id, user_id, date, type, text, media_key, mime, mood, extra_media, location)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO notes_entries (id, user_id, date, type, text, media_key, mime, mood, extra_media, location, tags)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(id, userId, date, type, finalText, mediaKey, mime, mood, extraKeys.join(",") || null, location || null)
+    .bind(
+      id,
+      userId,
+      date,
+      type,
+      finalText,
+      mediaKey,
+      mime,
+      mood,
+      extraKeys.join(",") || null,
+      location || null,
+      tags.join(",") || null
+    )
     .run();
 
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
