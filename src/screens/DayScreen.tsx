@@ -7,6 +7,7 @@ import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
 import { EmptyState, LoadingState } from "../ui/states";
+import { StickerGhost } from "../stickers";
 import { useToast } from "../ui/Toast";
 import { Fab } from "../ui/BottomNav";
 import { ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, RefreshCw, Trash2 } from "lucide-react";

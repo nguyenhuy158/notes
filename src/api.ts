@@ -86,6 +86,16 @@ export const api = {
 
   me: () => request<{ email: string; name: string }>("/api/me"),
 
+  // Kiểm tra đăng nhập lúc app khởi động — KHÔNG dùng request(), vì request()
+  // tự redirect sang /login khi 401. Ở đây 401 là kết quả hợp lệ (chưa đăng
+  // nhập), cần trả về để App hiện LoginScreen thay vì bounce mù không rõ lý do.
+  checkAuth: async (): Promise<{ email: string; name: string } | null> => {
+    const res = await fetch("/api/me");
+    if (res.status === 401) return null;
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+    return res.json();
+  },
+
   exportNotes: async (format: "json" | "markdown") => {
     const res = await fetch(`/api/export?format=${format}`);
     if (res.status === 401) {

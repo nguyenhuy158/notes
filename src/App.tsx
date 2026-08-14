@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "./api";
 import { CalendarScreen } from "./screens/CalendarScreen";
 import { ComposeScreen } from "./screens/ComposeScreen";
 import { DayScreen } from "./screens/DayScreen";
+import { LoginScreen } from "./screens/LoginScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { TimelineScreen } from "./screens/TimelineScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
@@ -10,10 +12,33 @@ import { useI18n } from "./i18n";
 
 type Tab = "calendar" | "timeline" | "settings";
 type Screen = { name: "root" } | { name: "day"; date: string } | { name: "compose"; date: string };
+type Auth = { status: "checking" } | { status: "anon" } | { status: "authed" };
 
 export function App() {
   const { t } = useI18n();
+  const [auth, setAuth] = useState<Auth>({ status: "checking" });
   const [tab, setTab] = useState<Tab>("calendar");
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .checkAuth()
+      .then((user) => !cancelled && setAuth({ status: user ? "authed" : "anon" }))
+      .catch(() => !cancelled && setAuth({ status: "anon" }));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (auth.status === "checking") {
+    return (
+      <div className="grid min-h-dvh place-items-center text-sm text-fg-muted">{t.auth_checking}</div>
+    );
+  }
+
+  if (auth.status === "anon") {
+    return <LoginScreen />;
+  }
 
   const NAV_ITEMS: BottomNavItem<Tab>[] = [
     { id: "calendar", label: t.nav_calendar, icon: Calendar },

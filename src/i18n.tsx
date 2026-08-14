@@ -6,6 +6,10 @@ const STORAGE_KEY = "ui-lang";
 
 const dict = {
   vi: {
+    auth_title: "Notes",
+    auth_tagline: "Nhật ký hằng ngày của riêng bạn.",
+    auth_cta: "Đăng nhập với Google",
+    auth_checking: "Đang kiểm tra đăng nhập...",
     nav_calendar: "Lịch",
     nav_timeline: "Dòng TG",
     nav_settings: "Cài đặt",
@@ -79,6 +83,10 @@ const dict = {
     theme_dark: "Tối",
   },
   en: {
+    auth_title: "Notes",
+    auth_tagline: "Your own daily journal.",
+    auth_cta: "Sign in with Google",
+    auth_checking: "Checking sign-in...",
     nav_calendar: "Calendar",
     nav_timeline: "Timeline",
     nav_settings: "Settings",
