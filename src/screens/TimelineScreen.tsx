@@ -1,20 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
-import { Search } from "lucide-react";
+import { Camera, Mic, PenLine, Search } from "lucide-react";
 import { api } from "../api";
-import type { Note } from "../api";
+import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
+import { MoodEmoji } from "../moodEmojis";
 import {
   computeStreak,
   formatVi,
   monthString,
+  parseDate,
   toJsDate,
   todayString,
 } from "../date";
 import { cn } from "../ui/cn";
 
-const MONTHS_BACK = 6;
+const MONTHS_PAGE = 6;
+
+const TYPE_ICON: Record<NoteType, typeof PenLine> = {
+  text: PenLine,
+  audio: Mic,
+  photo: Camera,
+};
 
 function pastMonths(count: number): string[] {
   const now = new Date();
@@ -25,6 +33,8 @@ function pastMonths(count: number): string[] {
   return list;
 }
 
+type Entry = { date: string; types: NoteType[]; mood: string | null };
+
 export function TimelineScreen({
   onOpenDay,
 }: {
@@ -33,33 +43,44 @@ export function TimelineScreen({
   const { t, lang } = useI18n();
   const locale = lang === "vi" ? vi : enUS;
   const today = todayString();
-  const [entries, setEntries] = useState<{ date: string; count: number }[]>([]);
+  const [monthsBack, setMonthsBack] = useState(MONTHS_PAGE);
+  const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [typeFilter, setTypeFilter] = useState<NoteType | null>(null);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Note[]>([]);
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    Promise.all(pastMonths(MONTHS_BACK).map((m) => api.days(m)))
+    (monthsBack === MONTHS_PAGE ? setLoading : setLoadingMore)(true);
+    Promise.all(pastMonths(monthsBack).map((m) => api.days(m)))
       .then((results) => {
         if (cancelled) return;
-        const merged: Record<string, string[]> = {};
-        for (const r of results) Object.assign(merged, r.days);
-        const list = Object.entries(merged)
-          .map(([date, types]) => ({ date, count: types.length }))
+        const days: Record<string, NoteType[]> = {};
+        const moods: Record<string, string> = {};
+        for (const r of results) {
+          Object.assign(days, r.days);
+          Object.assign(moods, r.moods);
+        }
+        const list = Object.entries(days)
+          .map(([date, types]) => ({ date, types, mood: moods[date] ?? null }))
           .sort((a, b) => (a.date < b.date ? 1 : -1));
         setEntries(list);
-        setStreak(computeStreak(new Set(Object.keys(merged))));
+        setStreak(computeStreak(new Set(Object.keys(days))));
       })
       .catch(() => {})
-      .finally(() => !cancelled && setLoading(false));
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+        setLoadingMore(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [monthsBack]);
 
   useEffect(() => {
     const q = query.trim();
@@ -82,6 +103,29 @@ export function TimelineScreen({
       clearTimeout(timeout);
     };
   }, [query]);
+
+  const filteredEntries = useMemo(
+    () => (typeFilter ? entries.filter((e) => e.types.includes(typeFilter)) : entries),
+    [entries, typeFilter],
+  );
+
+  const grouped = useMemo(() => {
+    const groups: { month: string; entries: Entry[] }[] = [];
+    for (const entry of filteredEntries) {
+      const month = entry.date.slice(0, 7);
+      const last = groups[groups.length - 1];
+      if (last?.month === month) last.entries.push(entry);
+      else groups.push({ month, entries: [entry] });
+    }
+    return groups;
+  }, [filteredEntries]);
+
+  const FILTERS: { id: NoteType | null; label: string; icon: typeof PenLine | null }[] = [
+    { id: null, label: t.timeline_filter_all, icon: null },
+    { id: "text", label: t.compose_tab_text, icon: PenLine },
+    { id: "audio", label: t.compose_tab_audio, icon: Mic },
+    { id: "photo", label: t.compose_tab_photo, icon: Camera },
+  ];
 
   return (
     <div className="px-4 py-4">
@@ -134,55 +178,112 @@ export function TimelineScreen({
         </div>
       ) : (
         <>
-          {loading && (
-            <p className="mt-4 text-sm text-fg-muted">{t.timeline_loading}</p>
-          )}
-          {!loading && entries.length === 0 && (
-            <p className="mt-4 text-sm text-fg-muted">{t.timeline_empty}</p>
-          )}
-
-          <div className="relative mt-4 pl-5">
-            <div className="absolute bottom-2 left-[7px] top-2 w-px bg-border" />
-
-            {entries.map(({ date, count }) => {
-              const isToday = date === today;
-
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {FILTERS.map(({ id, label, icon: Icon }) => {
+              const active = id === typeFilter;
               return (
                 <button
-                  key={date}
+                  key={id ?? "all"}
                   type="button"
-                  onClick={() => onOpenDay(date)}
-                  className="relative flex w-full items-center gap-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => setTypeFilter(id)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
+                    active
+                      ? "border-primary bg-primary text-primary-fg"
+                      : "border-border text-fg-muted hover:bg-surface-muted",
+                  )}
                 >
-                  <span
-                    className={cn(
-                      "absolute -left-5 h-3 w-3 rounded-full border-2 border-surface",
-                      isToday ? "bg-primary" : "bg-fg-muted",
-                    )}
-                  />
-                  <span className="flex flex-col">
-                    <span
-                      className={cn(
-                        "text-sm",
-                        isToday ? "font-semibold text-primary" : "text-fg",
-                      )}
-                    >
-                      {formatVi(date)}
-                    </span>
-                    <span className="text-xs text-fg-muted">
-                      {formatDistanceToNow(toJsDate(date), {
-                        addSuffix: true,
-                        locale,
-                      })}
-                    </span>
-                  </span>
-                  <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted tabular">
-                    {t.timeline_note_count(count)}
-                  </span>
+                  {Icon && <Icon size={13} />}
+                  {label}
                 </button>
               );
             })}
           </div>
+
+          {loading && (
+            <p className="mt-4 text-sm text-fg-muted">{t.timeline_loading}</p>
+          )}
+          {!loading && filteredEntries.length === 0 && (
+            <p className="mt-4 text-sm text-fg-muted">{t.timeline_empty}</p>
+          )}
+
+          {!loading &&
+            grouped.map((group) => {
+              const { year, month } = parseDate(`${group.month}-01`);
+
+              return (
+                <div key={group.month} className="mt-5">
+                  <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                    {t.calendar_month(month + 1, year)}
+                  </h2>
+
+                  <div className="relative pl-5">
+                    <div className="absolute bottom-2 left-[7px] top-2 w-px bg-border" />
+
+                    {group.entries.map(({ date, types, mood }) => {
+                      const isToday = date === today;
+                      const uniqueTypes = Array.from(new Set(types));
+
+                      return (
+                        <button
+                          key={date}
+                          type="button"
+                          onClick={() => onOpenDay(date)}
+                          className="relative flex w-full items-center gap-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span
+                            className={cn(
+                              "absolute -left-5 h-3 w-3 rounded-full border-2 border-surface",
+                              isToday ? "bg-primary" : "bg-fg-muted",
+                            )}
+                          />
+                          {mood ? (
+                            <MoodEmoji mood={mood} size={22} />
+                          ) : (
+                            <span className="flex w-[22px] shrink-0 items-center justify-center gap-0.5">
+                              {uniqueTypes.map((type) => {
+                                const Icon = TYPE_ICON[type];
+                                return <Icon key={type} size={13} className="text-fg-muted" />;
+                              })}
+                            </span>
+                          )}
+                          <span className="flex flex-col">
+                            <span
+                              className={cn(
+                                "text-sm",
+                                isToday ? "font-semibold text-primary" : "text-fg",
+                              )}
+                            >
+                              {formatVi(date)}
+                            </span>
+                            <span className="text-xs text-fg-muted">
+                              {formatDistanceToNow(toJsDate(date), {
+                                addSuffix: true,
+                                locale,
+                              })}
+                            </span>
+                          </span>
+                          <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted tabular">
+                            {t.timeline_note_count(types.length)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+          {!loading && (
+            <button
+              type="button"
+              onClick={() => setMonthsBack((m) => m + MONTHS_PAGE)}
+              disabled={loadingMore}
+              className="mt-5 w-full rounded-ui border border-dashed border-border py-2.5 text-center text-sm font-medium text-fg-muted transition hover:bg-surface-muted disabled:opacity-60"
+            >
+              {loadingMore ? t.timeline_loading_more : t.timeline_load_more}
+            </button>
+          )}
         </>
       )}
     </div>
