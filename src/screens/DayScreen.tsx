@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, type Note } from "../api";
+import { api, MOODS, type Mood, type Note } from "../api";
 import { useI18n } from "../i18n";
 import { MoodEmoji } from "../moodEmojis";
 import { formatTime, formatVi, parseDate, todayString, toDateString } from "../date";
@@ -73,11 +73,31 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
     }
   }
 
+  const [moodPickerOpen, setMoodPickerOpen] = useState(false);
+
+  async function changeMood(mood: Mood | null) {
+    setMoodPickerOpen(false);
+    if (mood === note.mood) return;
+    try {
+      const r = await api.updateMood(note.id, mood);
+      onSaved(r.note);
+    } catch {
+      toast.error(t.day_save_failed);
+    }
+  }
+
   return (
     <div className="rounded-ui border border-border bg-surface p-3">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-xs text-fg-muted">
-          {note.mood && <MoodEmoji mood={note.mood} size={18} />}
+          <button
+            type="button"
+            onClick={() => setMoodPickerOpen((v) => !v)}
+            aria-label={t.day_mood}
+            className="grid h-6 w-6 place-items-center rounded-full transition hover:bg-surface-muted"
+          >
+            {note.mood ? <MoodEmoji mood={note.mood} size={18} /> : <span className="text-fg-muted">+</span>}
+          </button>
           {formatTime(note.createdAt)}
         </span>
         <button
@@ -89,6 +109,31 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
           <Trash2 size={16} />
         </button>
       </div>
+
+      {moodPickerOpen && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {MOODS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => changeMood(m)}
+              className="grid h-8 w-8 place-items-center rounded-full transition hover:bg-surface-muted"
+            >
+              <MoodEmoji mood={m} size={20} />
+            </button>
+          ))}
+          {note.mood && (
+            <button
+              type="button"
+              onClick={() => changeMood(null)}
+              aria-label={t.day_mood_clear}
+              className="grid h-8 w-8 place-items-center rounded-full text-fg-muted transition hover:bg-surface-muted"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
 
       {note.type === "text" &&
         (editing ? (

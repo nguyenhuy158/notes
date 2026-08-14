@@ -18,6 +18,8 @@
     "deploy": "pnpm build && wrangler deploy"
   },
   "dependencies": {
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.3",
     "@tailwindcss/vite": "^4.0.0",
     "date-fns": "^4.4.0",
     "hono": "^4.12.27",

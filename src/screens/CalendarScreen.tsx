@@ -4,7 +4,7 @@ import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
 import { monthString, parseDate, todayString } from "../date";
 import { cn } from "../ui/cn";
-import { Camera, CalendarDays, Mic, PenLine } from "lucide-react";
+import { Camera, CalendarDays, ChevronLeft, ChevronRight, Mic, PenLine, X } from "lucide-react";
 import { MoodEmoji } from "../moodEmojis";
 
 const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];

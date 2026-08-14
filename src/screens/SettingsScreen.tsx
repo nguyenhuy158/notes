@@ -5,6 +5,7 @@ import { useToast } from "../ui/Toast";
 import { HeaderBar } from "../ui/HeaderBar";
 import { ThemeToggle } from "../ui/theme";
 import { Switch } from "../ui/Switch";
+import { Avatar } from "../ui/Avatar";
 import {
   getReminderTime,
   isReminderEnabled,
@@ -31,11 +32,13 @@ export function SettingsScreen() {
   const toast = useToast();
   const [exporting, setExporting] = useState<"json" | "markdown" | null>(null);
   const [stats, setStats] = useState<{ noteCount: number; mediaBytes: number } | null>(null);
+  const [me, setMe] = useState<{ email: string; name: string } | null>(null);
   const [reminderOn, setReminderOn] = useState(isReminderEnabled);
   const [reminderTime, setReminderTimeState] = useState(getReminderTime);
 
   useEffect(() => {
     api.stats().then(setStats).catch(() => {});
+    api.me().then(setMe).catch(() => {});
   }, []);
 
   async function exportNotes(format: "json" | "markdown") {
@@ -74,6 +77,16 @@ export function SettingsScreen() {
     <div className="pb-24">
       <HeaderBar title={t.settings_title} />
       <div className="space-y-4 px-4 py-4">
+        {me && (
+          <div className="flex items-center gap-3 rounded-ui border border-border bg-surface p-3">
+            <Avatar name={me.name} size={40} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-fg">{me.name}</p>
+              <p className="truncate text-xs text-fg-muted">{me.email}</p>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between rounded-ui border border-border bg-surface p-3">
           <span className="text-sm text-fg">{t.settings_theme}</span>
           <ThemeToggle />

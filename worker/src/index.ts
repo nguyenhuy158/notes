@@ -196,6 +196,29 @@ app.put("/api/notes/:id", async (c) => {
   return c.json({ note: toNoteJson(row!) });
 });
 
+// Sửa cảm xúc sau khi tạo — áp dụng mọi loại note (text/audio/photo), khác
+// PUT /api/notes/:id chỉ dành riêng cho sửa nội dung note text.
+app.put("/api/notes/:id/mood", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+  const body = await c.req.json<{ mood: string | null }>();
+  const mood = body.mood && MOODS.has(body.mood) ? body.mood : null;
+
+  const existing = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ? AND user_id = ?")
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  await c.env.DB.prepare(
+    "UPDATE notes_entries SET mood = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
+  )
+    .bind(mood, id)
+    .run();
+
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
+  return c.json({ note: toNoteJson(row!) });
+});
+
 app.delete("/api/notes/:id", async (c) => {
   const id = c.req.param("id");
   const userId = c.get("userId");
@@ -295,6 +318,15 @@ app.get("/api/export", async (c) => {
 
 // Dung lượng media (ảnh/âm thanh) của user trên R2. Không lưu size trong D1
 // nên tính trực tiếp từ R2.list theo prefix ${userId}/, phân trang bằng cursor.
+app.get("/api/me", async (c) => {
+  const userId = c.get("userId");
+  const row = await c.env.DB.prepare("SELECT email, name FROM notes_users WHERE id = ?")
+    .bind(userId)
+    .first<{ email: string; name: string }>();
+  if (!row) return c.json({ error: "not found" }, 404);
+  return c.json({ email: row.email, name: row.name });
+});
+
 app.get("/api/stats", async (c) => {
   const userId = c.get("userId");
   const countRow = await c.env.DB.prepare(

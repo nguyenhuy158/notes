@@ -60,9 +60,18 @@ export const api = {
       body: JSON.stringify({ text }),
     }),
 
+  updateMood: (id: string, mood: Mood | null) =>
+    request<{ note: Note }>(`/api/notes/${id}/mood`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood }),
+    }),
+
   deleteNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}`, { method: "DELETE" }),
 
   stats: () => request<{ noteCount: number; mediaBytes: number }>("/api/stats"),
+
+  me: () => request<{ email: string; name: string }>("/api/me"),
 
   exportNotes: async (format: "json" | "markdown") => {
     const res = await fetch(`/api/export?format=${format}`);
