@@ -9,13 +9,29 @@ import { Textarea } from "../ui/Input";
 import { EmptyState, LoadingState } from "../ui/states";
 import { useToast } from "../ui/Toast";
 import { Fab } from "../ui/BottomNav";
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus, RefreshCw, Trash2 } from "lucide-react";
 
 const AUTOSAVE_DELAY_MS = 1500;
 
-function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: string) => void; onSaved: (note: Note) => void }) {
+function NoteCard({
+  note,
+  canMoveUp,
+  canMoveDown,
+  onMove,
+  onDeleted,
+  onSaved,
+}: {
+  note: Note;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMove: (id: string, direction: -1 | 1) => void;
+  onDeleted: (id: string) => void;
+  onSaved: (note: Note) => void;
+}) {
   const { t } = useI18n();
   const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [replacing, setReplacing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(note.text);
   const [busy, setBusy] = useState(false);
@@ -73,6 +89,18 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
     }
   }
 
+  async function replaceMedia(file: File) {
+    setReplacing(true);
+    try {
+      const r = await api.replaceMedia(note.id, file, file.name);
+      onSaved(r.note);
+    } catch {
+      toast.error(t.day_replace_failed);
+    } finally {
+      setReplacing(false);
+    }
+  }
+
   const [moodPickerOpen, setMoodPickerOpen] = useState(false);
 
   async function changeMood(mood: Mood | null) {
@@ -100,14 +128,60 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
           </button>
           {formatTime(note.createdAt)}
         </span>
-        <button
-          type="button"
-          onClick={remove}
-          aria-label={t.day_delete}
-          className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted hover:text-danger"
-        >
-          <Trash2 size={16} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          {canMoveUp && (
+            <button
+              type="button"
+              onClick={() => onMove(note.id, -1)}
+              aria-label={t.day_move_up}
+              className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            >
+              <ChevronUp size={16} />
+            </button>
+          )}
+          {canMoveDown && (
+            <button
+              type="button"
+              onClick={() => onMove(note.id, 1)}
+              aria-label={t.day_move_down}
+              className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            >
+              <ChevronDown size={16} />
+            </button>
+          )}
+          {note.type !== "text" && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={note.type === "audio" ? "audio/*" : "image/*"}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) replaceMedia(file);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={replacing}
+                aria-label={t.day_replace_media}
+                className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:opacity-50"
+              >
+                <RefreshCw size={15} className={replacing ? "animate-spin" : ""} />
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={remove}
+            aria-label={t.day_delete}
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted hover:text-danger"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
       {moodPickerOpen && (
@@ -117,7 +191,7 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
               key={m}
               type="button"
               onClick={() => changeMood(m)}
-              className="grid h-8 w-8 place-items-center rounded-full transition hover:bg-surface-muted"
+              className="grid h-10 w-10 place-items-center rounded-full transition hover:bg-surface-muted"
             >
               <MoodEmoji mood={m} size={20} />
             </button>
@@ -127,7 +201,7 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
               type="button"
               onClick={() => changeMood(null)}
               aria-label={t.day_mood_clear}
-              className="grid h-8 w-8 place-items-center rounded-full text-fg-muted transition hover:bg-surface-muted"
+              className="grid h-10 w-10 place-items-center rounded-full text-fg-muted transition hover:bg-surface-muted"
             >
               ✕
             </button>
@@ -211,7 +285,7 @@ export function DayScreen({
             type="button"
             onClick={onBack}
             aria-label={t.day_back}
-            className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <ArrowLeft size={18} />
           </button>
@@ -222,7 +296,7 @@ export function DayScreen({
               type="button"
               onClick={() => onNavigate(shiftDate(date, -1))}
               aria-label={t.day_prev}
-              className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+              className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
             >
               <ChevronLeft size={18} />
             </button>
@@ -231,7 +305,7 @@ export function DayScreen({
               onClick={() => onNavigate(shiftDate(date, 1))}
               disabled={isToday}
               aria-label={t.day_next}
-              className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:opacity-30"
+              className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:opacity-30"
             >
               <ChevronRight size={18} />
             </button>
@@ -245,10 +319,24 @@ export function DayScreen({
         ) : notes.length === 0 ? (
           <EmptyState title={t.day_empty_title} description={t.day_empty_desc} />
         ) : (
-          notes.map((note) => (
+          notes.map((note, index) => (
             <NoteCard
               key={note.id}
               note={note}
+              canMoveUp={index > 0}
+              canMoveDown={index < notes.length - 1}
+              onMove={(id, direction) => {
+                setNotes((prev) => {
+                  if (!prev) return prev;
+                  const from = prev.findIndex((n) => n.id === id);
+                  const to = from + direction;
+                  if (from < 0 || to < 0 || to >= prev.length) return prev;
+                  const next = [...prev];
+                  [next[from], next[to]] = [next[to], next[from]];
+                  api.reorderNotes(next.map((n) => n.id)).catch(() => toast.error(t.day_save_failed));
+                  return next;
+                });
+              }}
               onDeleted={(id) => setNotes((prev) => (prev ?? []).filter((n) => n.id !== id))}
               onSaved={(updated) =>
                 setNotes((prev) => (prev ?? []).map((n) => (n.id === updated.id ? updated : n)))

@@ -37,6 +37,12 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   → SVG mặt kawaii tự vẽ; không đụng schema/whitelist backend. Thêm mood mới
   phải sửa cả 3 chỗ: `MOODS` (api.ts + worker), whitelist worker, và
   `MOOD_EMOJI` trong `moodEmojis.tsx`.
+- **Tông màu riêng cho notes**: `src/styles/tokens.css` là bản copy từ ui-kit
+  đã chỉnh `--ui-primary`/`--ui-bg` sang nâu ấm (warm journal), KHÔNG đồng bộ
+  ngược lại ui-kit gốc (vẫn tím) — mỗi project copy tokens.css riêng nên đổi
+  tại đây an toàn, không ảnh hưởng chia-keo/sso/app khác.
+- **Nút icon-only tối thiểu 40×40px** (`h-10 w-10`), không dùng `h-8 w-8`
+  nhỏ hơn — chuẩn touch target mobile, tránh bấm nhầm trên màn cảm ứng.
 
 ## Bảo mật: mime allow-list cho media
 

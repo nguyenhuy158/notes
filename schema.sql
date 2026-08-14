@@ -29,3 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_notes_entries_user_date ON notes_entries(user_id,
 -- LẦN khi migrate bảng đã tồn tại (báo lỗi "duplicate column" nếu chạy lại,
 -- bỏ qua lỗi đó là an toàn).
 ALTER TABLE notes_entries ADD COLUMN mood TEXT;
+
+-- Thứ tự note trong ngày (kéo lên/xuống), mặc định 0 = giữ nguyên thứ tự
+-- created_at cũ cho note có sẵn. Chỉ ORDER BY khi có ít nhất 1 note đã đổi
+-- vị trí, ngày mới toanh vẫn theo created_at ASC vì mọi note đều = 0.
+ALTER TABLE notes_entries ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;

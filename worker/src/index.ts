@@ -22,6 +22,7 @@ type NoteRow = {
   media_key: string | null;
   mime: string | null;
   mood: string | null;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 };
@@ -54,7 +55,7 @@ function toNoteJson(row: NoteRow) {
     text: row.text,
     mime: row.mime,
     mood: row.mood,
-    mediaUrl: row.media_key ? `/api/media/${row.id}` : null,
+    mediaUrl: row.media_key ? `/api/media/${row.id}?v=${encodeURIComponent(row.updated_at)}` : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -122,7 +123,7 @@ app.get("/api/notes", async (c) => {
   if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
   const userId = c.get("userId");
   const { results } = await c.env.DB.prepare(
-    "SELECT * FROM notes_entries WHERE user_id = ? AND date = ? ORDER BY created_at ASC"
+    "SELECT * FROM notes_entries WHERE user_id = ? AND date = ? ORDER BY sort_order ASC, created_at ASC"
   )
     .bind(userId, date)
     .all<NoteRow>();
@@ -172,6 +173,28 @@ app.post("/api/notes", async (c) => {
   return c.json({ note: toNoteJson(row!) }, 201);
 });
 
+// Sắp lại thứ tự note trong 1 ngày (kéo lên/xuống ở UI). Nhận nguyên danh
+// sách id theo thứ tự mới, gán sort_order = index — chỉ áp dụng cho note của
+// chính user, id lạ/của user khác bị bỏ qua thầm lặng (không lỗi cả request).
+// Đăng ký TRƯỚC "/api/notes/:id" — không thì ":id" nuốt mất path "reorder".
+app.put("/api/notes/reorder", async (c) => {
+  const userId = c.get("userId");
+  const body = await c.req.json<{ ids: string[] }>();
+  const ids = Array.isArray(body.ids) ? body.ids.filter((id) => typeof id === "string") : [];
+
+  await c.env.DB.batch(
+    ids.map((id, index) =>
+      c.env.DB.prepare("UPDATE notes_entries SET sort_order = ? WHERE id = ? AND user_id = ?").bind(
+        index,
+        id,
+        userId
+      )
+    )
+  );
+
+  return c.json({ ok: true });
+});
+
 app.put("/api/notes/:id", async (c) => {
   const id = c.req.param("id");
   const userId = c.get("userId");
@@ -213,6 +236,40 @@ app.put("/api/notes/:id/mood", async (c) => {
     "UPDATE notes_entries SET mood = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
   )
     .bind(mood, id)
+    .run();
+
+  const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();
+  return c.json({ note: toNoteJson(row!) });
+});
+
+// Thay file audio/photo của note đã tạo (giữ nguyên id/media_key, chỉ ghi đè
+// object R2 + mime). Không cho đổi loại note (audio -> photo) vì id ảnh/âm
+// thanh dùng chung route /api/media/:id, đổi type dễ gây nhầm ở nơi khác.
+app.put("/api/notes/:id/media", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+
+  const existing = await c.env.DB.prepare(
+    "SELECT * FROM notes_entries WHERE id = ? AND user_id = ? AND type IN ('audio', 'photo')"
+  )
+    .bind(id, userId)
+    .first<NoteRow>();
+  if (!existing) return c.json({ error: "not found" }, 404);
+
+  const form = await c.req.parseBody();
+  const file = form.file instanceof File ? form.file : null;
+  if (!file) return c.json({ error: "missing file" }, 400);
+  if (!ALLOWED_MIME.has(file.type)) return c.json({ error: "invalid file type" }, 400);
+
+  const mediaKey = existing.media_key ?? `${userId}/${id}`;
+  await c.env.MEDIA.put(mediaKey, await file.arrayBuffer(), {
+    httpMetadata: { contentType: file.type },
+  });
+
+  await c.env.DB.prepare(
+    "UPDATE notes_entries SET media_key = ?, mime = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?"
+  )
+    .bind(mediaKey, file.type, id)
     .run();
 
   const row = await c.env.DB.prepare("SELECT * FROM notes_entries WHERE id = ?").bind(id).first<NoteRow>();

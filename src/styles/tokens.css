@@ -15,19 +15,20 @@
 :root {
   color-scheme: light;
 
-  /* Nen va chu */
-  --ui-bg: oklch(99% 0.005 300);
+  /* Nen va chu — am nau nhat ky (warm journal), rieng cho notes, khong dung
+     chung voi ui-kit goc (violet). Copy rieng nen sua thang o day duoc. */
+  --ui-bg: oklch(98% 0.015 80);
   --ui-surface: oklch(100% 0 0);
-  --ui-surface-muted: oklch(97% 0.004 280);
-  --ui-border: oklch(90% 0.006 280);
+  --ui-surface-muted: oklch(96% 0.012 75);
+  --ui-border: oklch(90% 0.015 70);
   --ui-fg: oklch(22% 0.01 280);
   --ui-fg-muted: oklch(55% 0.015 280);
 
-  /* Mau thuong hieu */
-  --ui-primary: oklch(53% 0.23 300);
-  --ui-primary-hover: oklch(47% 0.23 300);
+  /* Mau thuong hieu — nau am (amber-800) */
+  --ui-primary: oklch(45% 0.13 55);
+  --ui-primary-hover: oklch(38% 0.12 50);
   --ui-primary-fg: oklch(100% 0 0);
-  --ui-primary-soft: oklch(96% 0.03 300);
+  --ui-primary-soft: oklch(94% 0.05 80);
 
   /* Mau trang thai */
   --ui-success: oklch(58% 0.15 155);
@@ -37,24 +38,24 @@
   --ui-danger: oklch(58% 0.2 20);
   --ui-danger-soft: oklch(96% 0.03 20);
 
-  --ui-ring: oklch(53% 0.23 300 / 35%);
+  --ui-ring: oklch(45% 0.13 55 / 35%);
   --ui-radius: 0.625rem;
 }
 
 .dark {
   color-scheme: dark;
 
-  --ui-bg: oklch(16% 0.008 280);
-  --ui-surface: oklch(21% 0.01 280);
-  --ui-surface-muted: oklch(25% 0.01 280);
-  --ui-border: oklch(32% 0.012 280);
+  --ui-bg: oklch(17% 0.012 60);
+  --ui-surface: oklch(22% 0.014 55);
+  --ui-surface-muted: oklch(26% 0.014 55);
+  --ui-border: oklch(33% 0.016 55);
   --ui-fg: oklch(94% 0.005 280);
   --ui-fg-muted: oklch(68% 0.015 280);
 
-  --ui-primary: oklch(65% 0.2 300);
-  --ui-primary-hover: oklch(71% 0.2 300);
-  --ui-primary-fg: oklch(18% 0.02 300);
-  --ui-primary-soft: oklch(30% 0.06 300);
+  --ui-primary: oklch(68% 0.12 60);
+  --ui-primary-hover: oklch(74% 0.12 60);
+  --ui-primary-fg: oklch(16% 0.02 55);
+  --ui-primary-soft: oklch(30% 0.05 60);
 
   --ui-success: oklch(70% 0.14 155);
   --ui-success-soft: oklch(30% 0.05 155);
@@ -63,7 +64,7 @@
   --ui-danger: oklch(68% 0.17 20);
   --ui-danger-soft: oklch(30% 0.06 20);
 
-  --ui-ring: oklch(65% 0.2 300 / 45%);
+  --ui-ring: oklch(68% 0.12 60 / 45%);
 }
 
 /* ---------------------------------------------------------------------------

@@ -69,6 +69,19 @@ export const api = {
 
   deleteNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}`, { method: "DELETE" }),
 
+  reorderNotes: (ids: string[]) =>
+    request<{ ok: true }>("/api/notes/reorder", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
+
+  replaceMedia: (id: string, file: Blob, filename: string) => {
+    const form = new FormData();
+    form.set("file", file, filename);
+    return request<{ note: Note }>(`/api/notes/${id}/media`, { method: "PUT", body: form });
+  },
+
   stats: () => request<{ noteCount: number; mediaBytes: number }>("/api/stats"),
 
   me: () => request<{ email: string; name: string }>("/api/me"),

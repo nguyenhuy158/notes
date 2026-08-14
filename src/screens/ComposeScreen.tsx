@@ -236,7 +236,7 @@ function MoodPicker({ mood, onChange }: { mood: Mood | null; onChange: (mood: Mo
           type="button"
           onClick={() => onChange(mood === m ? null : m)}
           className={cn(
-            "grid h-9 w-9 place-items-center rounded-full transition",
+            "grid h-10 w-10 place-items-center rounded-full transition",
             mood === m ? "ring-2 ring-primary" : "hover:bg-surface-muted",
           )}
         >
@@ -291,7 +291,7 @@ export function ComposeScreen({
             type="button"
             onClick={onBack}
             aria-label={t.day_back}
-            className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <ArrowLeft size={18} />
           </button>

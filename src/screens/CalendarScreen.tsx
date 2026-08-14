@@ -93,7 +93,7 @@ function MonthYearPicker({
             type="button"
             onClick={onClose}
             aria-label={t.calendar_done}
-            className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <X size={16} />
           </button>
@@ -104,7 +104,7 @@ function MonthYearPicker({
             type="button"
             onClick={() => setPickYear((y) => y - 1)}
             aria-label={t.calendar_prev_month}
-            className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <ChevronLeft size={16} />
           </button>
@@ -113,7 +113,7 @@ function MonthYearPicker({
             type="button"
             onClick={() => setPickYear((y) => y + 1)}
             aria-label={t.calendar_next_month}
-            className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <ChevronRight size={16} />
           </button>
@@ -201,7 +201,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
           type="button"
           onClick={() => shiftMonth(-1)}
           aria-label={t.calendar_prev_month}
-          className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
         >
           ‹
         </button>
@@ -219,7 +219,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
               type="button"
               onClick={goToday}
               aria-label={t.calendar_go_today}
-              className="grid h-7 w-7 place-items-center rounded-ui text-primary transition hover:bg-surface-muted"
+              className="grid h-9 w-9 place-items-center rounded-ui text-primary transition hover:bg-surface-muted"
             >
               <CalendarDays size={16} />
             </button>
@@ -229,7 +229,7 @@ export function CalendarScreen({ onOpenDay }: { onOpenDay: (date: string) => voi
           type="button"
           onClick={() => shiftMonth(1)}
           aria-label={t.calendar_next_month}
-          className="grid h-9 w-9 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
         >
           ›
         </button>
