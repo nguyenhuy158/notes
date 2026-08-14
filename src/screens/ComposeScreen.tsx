@@ -8,6 +8,7 @@ import { Textarea } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { cn } from "../ui/cn";
 import { ArrowLeft, Camera, Mic, Square, Type } from "lucide-react";
+import { compressImage } from "../lib/compressImage";
 
 function TextComposer({ onSave, saving }: { onSave: (text: string) => void; saving: boolean }) {
   const { t } = useI18n();
@@ -117,8 +118,23 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
 
 function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; saving: boolean }) {
   const { t } = useI18n();
+  const toast = useToast();
   const [file, setFile] = useState<File | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  async function onPick(picked: File | undefined) {
+    if (!picked) return;
+    setCompressing(true);
+    try {
+      setFile(await compressImage(picked));
+    } catch {
+      toast.error(t.compose_photo_compress_failed);
+      setFile(picked);
+    } finally {
+      setCompressing(false);
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -128,19 +144,21 @@ function PhotoComposer({ onSave, saving }: { onSave: (file: File) => void; savin
         accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        onChange={(e) => onPick(e.target.files?.[0])}
       />
 
       {!file && (
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
+          disabled={compressing}
           className={cn(
-            "flex h-56 w-full flex-col items-center justify-center gap-2 rounded-ui border-2 border-dashed border-border text-fg-muted transition hover:bg-surface-muted"
+            "flex h-56 w-full flex-col items-center justify-center gap-2 rounded-ui border-2 border-dashed border-border text-fg-muted transition hover:bg-surface-muted",
+            "disabled:opacity-60"
           )}
         >
           <Camera size={28} />
-          <span className="text-sm">{t.compose_photo_pick}</span>
+          <span className="text-sm">{compressing ? t.compose_photo_compressing : t.compose_photo_pick}</span>
         </button>
       )}
 
