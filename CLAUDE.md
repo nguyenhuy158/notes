@@ -56,3 +56,9 @@ dùng `Date` làm giá trị lưu trữ (lệch múi giờ). Timestamp đầy đ
 Xem [README.md](README.md) cho lệnh cụ thể (`pnpm db:migrate:remote`,
 `pnpm deploy`, v.v). Không cần `wrangler d1 create` — DB đã trỏ sẵn vào D1
 chung trong `wrangler.jsonc`.
+
+Push lên `main` là Cloudflare Workers Builds tự build + deploy, không đợi
+được ngay lập tức. Sau khi push, kiểm tra bản đã lên prod thật chưa bằng
+`curl https://notes.huyab.click/api/version` — so `commit` trả về với
+`git rev-parse HEAD` local; commit chưa khớp nghĩa là build chưa xong, đợi
+rồi check lại.
