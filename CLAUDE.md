@@ -31,6 +31,12 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   icon nhận diện nhanh hơn, đỡ tốn chỗ. Chỉ giữ chữ khi icon một mình gây mơ
   hồ (nút Lưu/Huỷ, tab bar có cả icon+label). Chi tiết + ví dụ:
   [dev-notes/icon-vs-text-ui.md](../dev-notes/icon-vs-text-ui.md).
+- **Mood tự vẽ SVG** (`src/moodEmojis.tsx`), không phải emoji unicode thẳng
+  dù giá trị lưu DB vẫn là ký tự unicode cũ (`😄🙂😐😔😡😴🥳😰` — xem `MOODS`
+  trong `api.ts`/`index.ts`). `MoodEmoji` chỉ đổi phần hiển thị, map unicode
+  → SVG mặt kawaii tự vẽ; không đụng schema/whitelist backend. Thêm mood mới
+  phải sửa cả 3 chỗ: `MOODS` (api.ts + worker), whitelist worker, và
+  `MOOD_EMOJI` trong `moodEmojis.tsx`.
 
 ## Bảo mật: mime allow-list cho media
 
