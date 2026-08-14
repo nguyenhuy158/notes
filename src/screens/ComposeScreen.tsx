@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, MOODS, type Mood, type NoteType } from "../api";
 import { useI18n } from "../i18n";
-import { formatVi } from "../date";
+import { formatTime, formatVi } from "../date";
 import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
@@ -10,21 +10,68 @@ import { cn } from "../ui/cn";
 import { ArrowLeft, Camera, Mic, Square, Type } from "lucide-react";
 import { compressImage } from "../lib/compressImage";
 
-function TextComposer({ onSave, saving }: { onSave: (text: string) => void; saving: boolean }) {
+const AUTOSAVE_DELAY_MS = 1500;
+
+// Note text mới tự lưu ngay lúc gõ (POST lần đầu, PUT các lần sau) — không
+// còn nút "Lưu" tay, đóng màn hình (nút back) là xong, note đã nằm trong DB.
+function TextComposer({ date, mood }: { date: string; mood: Mood | null }) {
   const { t } = useI18n();
+  const toast = useToast();
   const [text, setText] = useState("");
+  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const textRef = useRef(text);
+  textRef.current = text;
+  const noteIdRef = useRef<string | null>(null);
+
+  async function save() {
+    const value = textRef.current;
+    if (!value.trim()) return;
+    setStatus("saving");
+    try {
+      const r = noteIdRef.current
+        ? await api.updateText(noteIdRef.current, value)
+        : await api.createTextNote(date, value, mood);
+      noteIdRef.current = r.note.id;
+      setSavedAt(r.note.updatedAt);
+      setStatus("saved");
+    } catch {
+      toast.error(t.compose_save_failed);
+      setStatus("idle");
+    }
+  }
+
+  function onChange(value: string) {
+    setText(value);
+    setStatus("idle");
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(save, AUTOSAVE_DELAY_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+    };
+  }, []);
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <Textarea
         autoFocus
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => {
+          if (timerRef.current) window.clearTimeout(timerRef.current);
+          save();
+        }}
         rows={10}
         placeholder={t.compose_text_placeholder}
       />
-      <Button block onClick={() => onSave(text)} loading={saving} disabled={!text.trim()}>
-        {t.compose_save}
-      </Button>
+      <p className="text-xs text-fg-muted">
+        {status === "saving" && t.day_saving}
+        {status === "saved" && savedAt && t.day_saved_at(formatTime(savedAt))}
+      </p>
     </div>
   );
 }
@@ -220,19 +267,6 @@ export function ComposeScreen({
     { id: "photo", label: t.compose_tab_photo, icon: Camera },
   ];
 
-  async function saveText(text: string) {
-    setSaving(true);
-    try {
-      await api.createTextNote(date, text, mood);
-      toast.success(t.compose_saved);
-      onSaved();
-    } catch {
-      toast.error(t.compose_save_failed);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function saveMedia(type: "audio" | "photo", file: Blob, filename: string) {
     setSaving(true);
     try {
@@ -285,7 +319,7 @@ export function ComposeScreen({
 
         <div className="mt-4">
           <MoodPicker mood={mood} onChange={setMood} />
-          {tab === "text" && <TextComposer onSave={saveText} saving={saving} />}
+          {tab === "text" && <TextComposer date={date} mood={mood} />}
           {tab === "audio" && (
             <AudioComposer onSave={(blob) => saveMedia("audio", blob, "note.webm")} saving={saving} />
           )}

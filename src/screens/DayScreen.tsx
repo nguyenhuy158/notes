@@ -19,17 +19,21 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
   const [draft, setDraft] = useState(note.text);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  const noteRef = useRef(note);
+  noteRef.current = note;
 
   async function save() {
-    if (!draftRef.current.trim() || draftRef.current === note.text) return;
+    if (!draftRef.current.trim() || draftRef.current === noteRef.current.text) return;
     setBusy(true);
     try {
-      const r = await api.updateText(note.id, draftRef.current);
+      const r = await api.updateText(noteRef.current.id, draftRef.current);
       onSaved(r.note);
       setDirty(false);
+      setSavedAt(r.note.updatedAt);
     } catch {
       toast.error(t.day_save_failed);
     } finally {
@@ -94,7 +98,13 @@ function NoteCard({ note, onDeleted, onSaved }: { note: Note; onDeleted: (id: st
                 {t.day_cancel}
               </Button>
               <span className="text-xs text-fg-muted">
-                {busy ? t.day_saving : dirty ? t.day_unsaved : t.day_saved}
+                {busy
+                  ? t.day_saving
+                  : dirty
+                    ? t.day_unsaved
+                    : savedAt
+                      ? t.day_saved_at(formatTime(savedAt))
+                      : t.day_saved}
               </span>
             </div>
           </div>
