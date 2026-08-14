@@ -13,6 +13,7 @@ import { compressImage } from "../lib/compressImage";
 import { randomPrompt } from "../writingPrompts";
 import { isNetworkError, queueCreate, queueUpdate } from "../offlineQueue";
 import { useDictation } from "../dictation";
+import { PlaceAutocomplete } from "../ui/PlaceAutocomplete";
 
 const AUTOSAVE_DELAY_MS = 1500;
 
@@ -327,10 +328,10 @@ function LocationInput({ value, onChange }: { value: string; onChange: (v: strin
   return (
     <div className="mb-3 flex items-center gap-2">
       <MapPin size={14} className="shrink-0 text-fg-muted" />
-      <input
+      <PlaceAutocomplete
         autoFocus
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         placeholder={t.day_location_placeholder}
         className="min-w-0 flex-1 rounded-ui border border-border bg-surface px-3 py-1.5 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
       />

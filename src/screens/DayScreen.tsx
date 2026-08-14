@@ -15,6 +15,7 @@ import { isNetworkError, queueUpdate } from "../offlineQueue";
 import { isNoteLocked, setNoteLocked } from "../noteLocks";
 import { isPinSet, verifyPin } from "../pinLock";
 import { renderLite } from "../markdownLite";
+import { PlaceAutocomplete } from "../ui/PlaceAutocomplete";
 import {
   ArrowLeft,
   CalendarClock,
@@ -454,11 +455,11 @@ function NoteCard({
       {locationOpen && (
         <div className="mt-2 flex items-center gap-2">
           <MapPin size={14} className="shrink-0 text-fg-muted" />
-          <input
+          <PlaceAutocomplete
             autoFocus
             value={locationDraft}
-            onChange={(e) => setLocationDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && saveLocation()}
+            onChange={setLocationDraft}
+            onSubmit={saveLocation}
             placeholder={t.day_location_placeholder}
             className="min-w-0 flex-1 rounded-ui border border-border bg-surface px-3 py-2 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />

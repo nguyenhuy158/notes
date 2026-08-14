@@ -86,7 +86,12 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
 - **Chuyển ngày note**: `PUT /api/notes/:id/date` — không giữ lịch sử ngày cũ,
   đổi thẳng cột `date`.
 - **Địa điểm tự do** (`location`, text người tự gõ — KHÔNG xin quyền định vị
-  trình duyệt, không phải toạ độ GPS thật).
+  trình duyệt, không phải toạ độ GPS thật). Có gợi ý khi gõ qua
+  `GET /api/places` (proxy Nominatim/OpenStreetMap, miễn phí không cần API
+  key) — worker tự gọi (không phải browser) để đặt đúng `User-Agent` theo
+  chính sách dùng của Nominatim và né CORS. Vẫn chỉ lưu tên hiển thị dạng
+  text, KHÔNG lưu toạ độ. UI dùng chung `src/ui/PlaceAutocomplete.tsx` ở cả
+  Compose lẫn sửa location trong Day.
 - **Album ảnh in/PDF**: không thêm lib PDF, dùng `window.print()` +
   `@media print` (xem `AlbumScreen.tsx`) — "Lưu dưới dạng PDF" có sẵn trong
   hộp thoại in của trình duyệt.

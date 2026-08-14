@@ -95,6 +95,8 @@ export const api = {
 
   words: () => request<{ words: { word: string; count: number }[] }>("/api/words"),
 
+  searchPlaces: (q: string) => request<{ places: string[] }>(`/api/places?q=${encodeURIComponent(q)}`),
+
   updateLocation: (id: string, location: string) =>
     request<{ note: Note }>(`/api/notes/${id}/location`, {
       method: "PUT",

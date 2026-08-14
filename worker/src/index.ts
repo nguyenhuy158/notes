@@ -192,6 +192,33 @@ app.get("/api/words", async (c) => {
   return c.json({ words: top });
 });
 
+// Gợi ý địa điểm khi gõ — proxy qua Nominatim (OpenStreetMap), không cần API
+// key/billing. Chạy ở server (không phải fetch thẳng từ browser) để tự đặt
+// User-Agent đúng theo yêu cầu chính sách dùng của Nominatim (không phải để
+// giấu key, service này miễn phí không cần key) và né CORS. Chỉ trả tên hiển
+// thị — location của note vẫn là text tự do, không lưu toạ độ.
+app.get("/api/places", async (c) => {
+  const q = (c.req.query("q") ?? "").trim();
+  if (q.length < 2) return c.json({ places: [] });
+
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", q);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "5");
+  url.searchParams.set("addressdetails", "0");
+
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "notes.huyab.click (personal journal app)" },
+    });
+    if (!res.ok) return c.json({ places: [] });
+    const results = await res.json<{ display_name: string }[]>();
+    return c.json({ places: results.map((r) => r.display_name) });
+  } catch {
+    return c.json({ places: [] });
+  }
+});
+
 // "Kỷ niệm": note trùng ngày/tháng ở các năm trước, để nhắc lại chuyện cũ
 // trên trang chủ (giống tính năng "On this day" ở Google Photos/Facebook).
 app.get("/api/on-this-day", async (c) => {
