@@ -29,7 +29,8 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
 - **Ưu tiên icon hơn chữ** cho nút hành động/điều hướng (vd nút "về hôm nay"
   ở Calendar dùng icon `CalendarDays`, không phải label chữ) — app mobile,
   icon nhận diện nhanh hơn, đỡ tốn chỗ. Chỉ giữ chữ khi icon một mình gây mơ
-  hồ (nút Lưu/Huỷ, tab bar có cả icon+label).
+  hồ (nút Lưu/Huỷ, tab bar có cả icon+label). Chi tiết + ví dụ:
+  [dev-notes/icon-vs-text-ui.md](../dev-notes/icon-vs-text-ui.md).
 
 ## Bảo mật: mime allow-list cho media
 
