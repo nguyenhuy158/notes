@@ -357,6 +357,64 @@ app.get("/api/notes", async (c) => {
   return c.json({ notes: results.map((row) => toNoteJson(row)) });
 });
 
+// Tóm tắt ngày bằng AI — gom nội dung note text trong ngày, gọi LLM sinh
+// 2-3 câu recap. Chỉ hoạt động khi có ≥2 note text (1 note đã tự là tóm tắt).
+// Không cache (app cá nhân, traffic thấp, Workers AI free tier đủ dùng).
+const MAX_SUMMARY_INPUT_CHARS = 2000;
+
+app.get("/api/summary", async (c) => {
+  const date = c.req.query("date") ?? "";
+  if (!DATE_RE.test(date)) return c.json({ error: "invalid date" }, 400);
+  const userId = c.get("userId");
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT text FROM notes_entries
+     WHERE user_id = ? AND date = ? AND type = 'text' AND deleted_at IS NULL AND text != ''
+     ORDER BY sort_order ASC, created_at ASC`
+  )
+    .bind(userId, date)
+    .all<{ text: string }>();
+
+  if (results.length < 2) return c.json({ summary: null });
+
+  // Ghép nội dung, cắt để không vượt context window model.
+  let combined = "";
+  for (const { text } of results) {
+    if (combined.length + text.length + 1 > MAX_SUMMARY_INPUT_CHARS) {
+      combined += "\n" + text.slice(0, MAX_SUMMARY_INPUT_CHARS - combined.length);
+      break;
+    }
+    combined += (combined ? "\n" : "") + text;
+  }
+
+  try {
+    const result = await c.env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+      messages: [
+        {
+          role: "system",
+          content:
+            "Bạn là trợ lý tóm tắt nhật ký cá nhân. Viết tóm tắt ngắn gọn 2-3 câu bằng tiếng Việt, " +
+            "giữ nguyên tone cảm xúc của người viết. Chỉ trả lời đoạn tóm tắt, không thêm tiêu đề hay gạch đầu dòng.",
+        },
+        {
+          role: "user",
+          content: `Tóm tắt các ghi chú trong ngày sau:\n\n${combined}`,
+        },
+      ],
+      max_tokens: 150,
+    });
+
+    const summary = typeof result === "object" && result && "response" in result
+      ? (result as { response: string }).response?.trim() || null
+      : null;
+
+    return c.json({ summary });
+  } catch (err) {
+    console.error("AI summary failed", err);
+    return c.json({ summary: null });
+  }
+});
+
 const MAX_EXTRA_PHOTOS = 9; // 1 chính + tối đa 9 phụ = gallery 10 ảnh/note
 const MAX_LOCATION_LENGTH = 80;
 

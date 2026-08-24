@@ -33,6 +33,7 @@ import {
   Plus,
   RefreshCw,
   Share2,
+  Sparkles,
   Tag,
   Trash2,
   X,
@@ -629,13 +630,34 @@ export function DayScreen({
   const { t } = useI18n();
   const toast = useToast();
   const [notes, setNotes] = useState<Note[] | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const isToday = date === todayString();
+
+  function fetchSummary() {
+    setSummaryLoading(true);
+    setSummary(null);
+    api
+      .summary(date)
+      .then((r) => setSummary(r.summary))
+      .catch(() => {})
+      .finally(() => setSummaryLoading(false));
+  }
 
   useEffect(() => {
     setNotes(null);
+    setSummary(null);
+    setSummaryLoading(false);
     api
       .notes(date)
-      .then((r) => setNotes(r.notes))
+      .then((r) => {
+        setNotes(r.notes);
+        // Chỉ fetch summary khi có ≥2 note text (server cũng check, nhưng skip
+        // request luôn nếu biết trước không đủ — tiết kiệm 1 round-trip).
+        if (r.notes.filter((n) => n.type === "text" && n.text.trim()).length >= 2) {
+          fetchSummary();
+        }
+      })
       .catch(() => toast.error(t.day_load_failed));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
@@ -678,6 +700,35 @@ export function DayScreen({
       />
 
       <div className="space-y-3 px-4 py-4">
+        {(summaryLoading || summary) && (
+          <div className="rounded-ui border border-border bg-surface p-3">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-medium text-fg-muted">
+                <Sparkles size={14} className="text-primary" />
+                {t.day_summary_title}
+              </span>
+              {summary && (
+                <button
+                  type="button"
+                  onClick={fetchSummary}
+                  disabled={summaryLoading}
+                  aria-label={t.day_summary_retry}
+                  className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:opacity-50"
+                >
+                  <RefreshCw size={14} className={summaryLoading ? "animate-spin" : ""} />
+                </button>
+              )}
+            </div>
+            <p className="mt-1.5 text-sm text-fg">
+              {summaryLoading ? (
+                <span className="text-fg-muted">{t.day_summary_loading}</span>
+              ) : (
+                summary
+              )}
+            </p>
+          </div>
+        )}
+
         {notes === null ? (
           <LoadingState />
         ) : notes.length === 0 ? (
