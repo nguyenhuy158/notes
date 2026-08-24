@@ -41,6 +41,8 @@ export const api = {
 
   notes: (date: string) => request<{ notes: Note[] }>(`/api/notes?date=${date}`),
 
+  summary: (date: string) => request<{ summary: string | null }>(`/api/summary?date=${date}`),
+
   onThisDay: (date: string) => request<{ notes: Note[] }>(`/api/on-this-day?date=${date}`),
 
   search: (q: string) => request<{ notes: Note[] }>(`/api/search?q=${encodeURIComponent(q)}`),
