@@ -61,7 +61,7 @@ export function TrashScreen({ onBack }: { onBack: () => void }) {
         }
       />
 
-      <div className="space-y-3 px-4 py-4">
+      <div className="mx-auto max-w-3xl space-y-3 px-4 py-4">
         {notes === null ? (
           <LoadingState />
         ) : notes.length === 0 ? (

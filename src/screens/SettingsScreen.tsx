@@ -10,12 +10,16 @@ import {
   Images,
   Languages,
   BarChart3,
+  Camera,
   ChevronRight,
   FileJson,
   FileText,
   LogOut,
+  Mic,
   Tag as TagIcon,
   Trash2,
+  Type,
+  Video,
 } from "lucide-react";
 import {
   getReminderTime,
@@ -27,10 +31,19 @@ import {
 } from "../reminder";
 import { clearPin, getIdleLockMinutes, isPinSet, setIdleLockMinutes, setPin } from "../pinLock";
 import { ACCENT_PRESETS, getAccentHue, setAccentHue } from "../accentColor";
+import { getDefaultNoteType, setDefaultNoteType } from "../composePref";
+import type { NoteType } from "../api";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { Skeleton } from "../ui/states";
 import { cn } from "../ui/cn";
+
+const NOTE_TYPES: { id: NoteType; icon: typeof Type }[] = [
+  { id: "text", icon: Type },
+  { id: "audio", icon: Mic },
+  { id: "photo", icon: Camera },
+  { id: "video", icon: Video },
+];
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -64,6 +77,12 @@ export function SettingsScreen({
   function pickAccent(hue: number) {
     setAccentHue(hue);
     setAccentHueState(hue);
+  }
+  const [defaultType, setDefaultTypeState] = useState(getDefaultNoteType);
+
+  function pickDefaultType(type: NoteType) {
+    setDefaultNoteType(type);
+    setDefaultTypeState(type);
   }
   const [reminderOn, setReminderOn] = useState(isReminderEnabled);
   const [reminderTime, setReminderTimeState] = useState(getReminderTime);
@@ -144,7 +163,7 @@ export function SettingsScreen({
   return (
     <div className="pb-24">
       <HeaderBar title={t.settings_title} />
-      <div className="space-y-4 px-4 py-4">
+      <div className="mx-auto max-w-3xl space-y-4 px-4 py-4">
         {me && (
           <div className="flex items-center gap-3 rounded-ui border border-border bg-surface p-3">
             <Avatar name={me.name} size={40} />
@@ -184,6 +203,29 @@ export function SettingsScreen({
             ))}
           </div>
         </div>
+        <div className="rounded-ui border border-border bg-surface p-3">
+          <p className="mb-2 text-sm text-fg">{t.settings_default_note}</p>
+          <div role="group" aria-label={t.settings_default_note} className="grid grid-cols-4 gap-1">
+            {NOTE_TYPES.map(({ id, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => pickDefaultType(id)}
+                aria-pressed={defaultType === id}
+                className={cn(
+                  "flex min-h-11 cursor-pointer flex-col items-center justify-center gap-1 rounded-ui text-xs font-medium transition active:scale-95",
+                  defaultType === id
+                    ? "bg-primary text-primary-fg"
+                    : "text-fg-muted hover:bg-surface-muted",
+                )}
+              >
+                <Icon size={16} aria-hidden="true" />
+                {t[`compose_tab_${id}`]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex items-center justify-between rounded-ui border border-border bg-surface p-3">
           <span className="flex items-center gap-2 text-sm text-fg">
             <Languages className="h-4 w-4 text-fg-muted" aria-hidden="true" />

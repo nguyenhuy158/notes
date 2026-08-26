@@ -96,7 +96,7 @@ export function TagNotesScreen({
         }
       />
 
-      <div className="space-y-2 px-4 py-4">
+      <div className="mx-auto max-w-3xl space-y-2 px-4 py-4">
         {notes === null ? (
           <LoadingState />
         ) : notes.length === 0 ? (

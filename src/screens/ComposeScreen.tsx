@@ -8,6 +8,7 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { useDialog } from "../ui/ConfirmDialog";
+import { getDefaultNoteType } from "../composePref";
 import { cn } from "../ui/cn";
 import {
   ArrowLeft,
@@ -579,7 +580,7 @@ export function ComposeScreen({
   const { t } = useI18n();
   const toast = useToast();
   const dialog = useDialog();
-  const [tab, setTab] = useState<NoteType>("text");
+  const [tab, setTab] = useState<NoteType>(getDefaultNoteType);
   const [saving, setSaving] = useState(false);
   const [mood, setMood] = useState<Mood | null>(null);
   const [location, setLocation] = useState("");
@@ -653,7 +654,7 @@ export function ComposeScreen({
         }
       />
 
-      <div className="px-4 py-4">
+      <div className="mx-auto max-w-2xl px-4 py-4">
         <div
           role="tablist"
           aria-label={t.compose_title}

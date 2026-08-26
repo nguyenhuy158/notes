@@ -57,12 +57,12 @@ export function AlbumScreen({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <div className="px-4 print:px-0">
+      <div className="mx-auto max-w-5xl px-4 print:max-w-none print:px-0">
         {notes !== null && photos.length === 0 && (
           <EmptyState icon={<StickerGhost size={40} />} title={t.album_empty} />
         )}
 
-        <div className="grid grid-cols-2 gap-3 print:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 print:grid-cols-3">
           {photos.flatMap((note) =>
             note.mediaUrls.map((url, i) => (
               <figure key={`${note.id}-${i}`} className="break-inside-avoid">

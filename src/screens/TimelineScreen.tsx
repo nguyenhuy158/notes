@@ -157,7 +157,7 @@ export function TimelineScreen({
   ];
 
   return (
-    <div className="px-4 py-4">
+    <div className="mx-auto max-w-3xl px-4 py-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-xl font-semibold tracking-tight text-fg">{t.timeline_title}</h1>
         {streak > 0 && (

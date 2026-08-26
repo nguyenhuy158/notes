@@ -765,7 +765,7 @@ export function DayScreen({
         }
       />
 
-      <div className="space-y-3 px-4 py-4">
+      <div className="mx-auto max-w-3xl space-y-3 px-4 py-4">
         {(summaryLoading || summary) && (
           <div className="rounded-ui border border-border bg-surface p-3">
             <div className="flex items-center justify-between">

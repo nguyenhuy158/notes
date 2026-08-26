@@ -62,7 +62,7 @@ export function TagsScreen({
         }
       />
 
-      <div className="space-y-2 px-4 py-4">
+      <div className="mx-auto max-w-3xl space-y-2 px-4 py-4">
         {tags === null ? (
           <LoadingState />
         ) : tags.length === 0 ? (

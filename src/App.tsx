@@ -13,6 +13,7 @@ import { TrashScreen } from "./screens/TrashScreen";
 import { TagsScreen } from "./screens/TagsScreen";
 import { TagNotesScreen } from "./screens/TagNotesScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
+import { SideNav } from "./ui/SideNav";
 import { Calendar, Settings, History } from "lucide-react";
 import { useI18n } from "./i18n";
 import { isUnlockedThisSession, lockIfIdleTooLong, markHidden, markUnlocked } from "./pinLock";
@@ -158,7 +159,12 @@ export function App() {
   }
 
   return (
-    <div className="mx-auto max-w-md pb-20">
+    <div className="lg:flex">
+      <SideNav items={NAV_ITEMS} active={tab} onChange={setTab} title={t.auth_title} />
+
+      {/* pb-20 chi can khi con BottomNav (duoi lg). Tren desktop noi dung rong
+          hon nhung van gioi han max-w-3xl cho do dai dong doc duoc. */}
+      <div className="mx-auto w-full max-w-md pb-20 lg:max-w-3xl lg:pb-6">
       {tab === "calendar" && (
         <CalendarScreen
           onOpenDay={(date) => setScreen({ name: "day", date })}
@@ -175,6 +181,7 @@ export function App() {
           onOpenTags={() => setScreen({ name: "tags" })}
         />
       )}
+      </div>
 
       <BottomNav items={NAV_ITEMS} active={tab} onChange={setTab} />
     </div>
