@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, MOODS, type Mood, type Note } from "../api";
 import { useI18n } from "../i18n";
 import { MoodEmoji } from "../moodEmojis";
@@ -6,9 +6,10 @@ import { formatTime, formatVi, parseDate, todayString, toDateString } from "../d
 import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
-import { EmptyState, LoadingState } from "../ui/states";
+import { EmptyState, LoadingState, Skeleton } from "../ui/states";
 import { StickerGhost } from "../stickers";
 import { useToast } from "../ui/Toast";
+import { useDialog } from "../ui/ConfirmDialog";
 import { Fab } from "../ui/BottomNav";
 import { cn } from "../ui/cn";
 import { isNetworkError, queueUpdate } from "../offlineQueue";
@@ -41,12 +42,43 @@ import {
 
 const AUTOSAVE_DELAY_MS = 1500;
 
+/** Mot dong trong menu "thêm": min-h-11 cho du tam bam tren mobile. */
+function MenuItem({
+  icon,
+  onClick,
+  danger,
+  children,
+}: {
+  icon: ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className={cn(
+        "flex min-h-11 w-full cursor-pointer items-center gap-2.5 px-3 text-left text-sm transition",
+        danger ? "text-danger hover:bg-danger-soft" : "text-fg hover:bg-surface-muted",
+      )}
+    >
+      <span className={cn("shrink-0", danger ? "" : "text-fg-muted")} aria-hidden="true">
+        {icon}
+      </span>
+      {children}
+    </button>
+  );
+}
+
 function NoteCard({
   note,
   canMoveUp,
   canMoveDown,
   onMove,
   onDeleted,
+  onRestored,
   onSaved,
   onMovedToOtherDate,
   onOpenTag,
@@ -56,12 +88,14 @@ function NoteCard({
   canMoveDown: boolean;
   onMove: (id: string, direction: -1 | 1) => void;
   onDeleted: (id: string) => void;
+  onRestored: (note: Note) => void;
   onSaved: (note: Note) => void;
   onMovedToOtherDate: (id: string) => void;
   onOpenTag: (tag: string) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
+  const dialog = useDialog();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [replacing, setReplacing] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -118,11 +152,23 @@ function NoteCard({
     };
   }, []);
 
+  /* Xoa mem + toast Hoan tac thay cho window.confirm: nhanh hon, va vi
+     `deleted_at` la xoa mem nen restoreNote lay lai duoc nguyen ven. */
   async function remove() {
-    if (!window.confirm(t.day_delete_confirm)) return;
     try {
       await api.deleteNote(note.id);
       onDeleted(note.id);
+      toast.info(t.day_deleted_undo, {
+        action: {
+          label: t.undo,
+          onClick: () => {
+            api
+              .restoreNote(note.id)
+              .then((r) => onRestored(r.note))
+              .catch(() => toast.error(t.trash_restore_failed));
+          },
+        },
+      });
     } catch {
       toast.error(t.day_delete_failed);
     }
@@ -241,6 +287,25 @@ function NoteCard({
   }
 
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Esc + bam ra ngoai de dong: truoc day menu chi dong khi bam dung 1 item.
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMoreMenuOpen(false);
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMoreMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [moreMenuOpen]);
+
   const [locked, setLocked] = useState(() => isNoteLocked(note.id));
   const [revealed, setRevealed] = useState(false);
 
@@ -255,7 +320,8 @@ function NoteCard({
       setRevealed(false);
       return;
     }
-    const pin = window.prompt(t.pin_enter_title) ?? "";
+    const pin = await askPin();
+    if (pin === null) return;
     if (!(await verifyPin(pin))) {
       toast.error(t.pin_wrong);
       return;
@@ -264,8 +330,17 @@ function NoteCard({
     setLocked(false);
   }
 
+  function askPin() {
+    return dialog.prompt({
+      title: t.pin_enter_title,
+      confirmLabel: t.pin_unlock,
+      input: { label: t.pin_enter_title, type: "password", inputMode: "numeric", maxLength: 6 },
+    });
+  }
+
   async function reveal() {
-    const pin = window.prompt(t.pin_enter_title) ?? "";
+    const pin = await askPin();
+    if (pin === null) return;
     if (await verifyPin(pin)) setRevealed(true);
     else toast.error(t.pin_wrong);
   }
@@ -291,31 +366,52 @@ function NoteCard({
             type="button"
             onClick={() => setMoodPickerOpen((v) => !v)}
             aria-label={t.day_mood}
-            className="grid h-6 w-6 place-items-center rounded-full transition hover:bg-surface-muted"
+            aria-expanded={moodPickerOpen}
+            className="-ml-1 grid h-10 w-10 cursor-pointer place-items-center rounded-full transition hover:bg-surface-muted active:scale-95"
           >
-            {note.mood ? <MoodEmoji mood={note.mood} size={18} /> : <span className="text-fg-muted">+</span>}
+            {note.mood ? <MoodEmoji mood={note.mood} size={20} /> : <Plus size={16} aria-hidden="true" />}
           </button>
           {formatTime(note.createdAt)}
         </span>
+        {/* Chi 2 nut o ngoai (ghim + thêm): 6 nut 40px truoc day khong vua the
+            card rong max-w-md tren dien thoai. Con lai gom vao menu. */}
         <div className="flex items-center gap-0.5">
+          {note.type !== "text" && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={
+                note.type === "audio" ? "audio/*" : note.type === "video" ? "video/*" : "image/*"
+              }
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) replaceMedia(file);
+                e.target.value = "";
+              }}
+            />
+          )}
           <button
             type="button"
             onClick={togglePin}
             aria-label={note.pinned ? t.day_unpin : t.day_pin}
+            aria-pressed={note.pinned}
             className={cn(
-              "grid h-10 w-10 place-items-center rounded-ui transition hover:bg-surface-muted",
+              "grid h-10 w-10 cursor-pointer place-items-center rounded-ui transition hover:bg-surface-muted active:scale-95",
               note.pinned ? "text-primary" : "text-fg-muted",
             )}
           >
             {note.pinned ? <PinOff size={16} /> : <Pin size={16} />}
           </button>
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               type="button"
               onClick={() => setMoreMenuOpen((v) => !v)}
               aria-label={t.day_more}
+              aria-expanded={moreMenuOpen}
+              aria-haspopup="menu"
               className={cn(
-                "grid h-10 w-10 place-items-center rounded-ui transition hover:bg-surface-muted",
+                "grid h-10 w-10 cursor-pointer place-items-center rounded-ui transition hover:bg-surface-muted active:scale-95",
                 note.location || locked ? "text-primary" : "text-fg-muted",
               )}
             >
@@ -323,106 +419,59 @@ function NoteCard({
             </button>
             {moreMenuOpen && (
               <div
-                className="absolute right-0 top-11 z-10 w-44 overflow-hidden rounded-ui border border-border bg-surface py-1 shadow-lg"
+                role="menu"
+                aria-label={t.day_more}
+                className="absolute right-0 top-11 z-20 w-48 overflow-hidden rounded-ui border border-border bg-surface py-1 shadow-lg"
                 onClick={() => setMoreMenuOpen(false)}
               >
-                <button
-                  type="button"
-                  onClick={() => setTagsOpen((v) => !v)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
-                >
-                  <Tag size={15} className="text-fg-muted" />
+                <MenuItem icon={<Tag size={15} />} onClick={() => setTagsOpen((v) => !v)}>
                   {t.day_tags}
-                </button>
-                <button
-                  type="button"
-                  onClick={shareNote}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
-                >
-                  <Share2 size={15} className="text-fg-muted" />
+                </MenuItem>
+                <MenuItem icon={<Share2 size={15} />} onClick={shareNote}>
                   {t.day_share}
-                </button>
-                <button
-                  type="button"
+                </MenuItem>
+                <MenuItem
+                  icon={<MapPin size={15} className={note.location ? "text-primary" : undefined} />}
                   onClick={() => setLocationOpen((v) => !v)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
                 >
-                  <MapPin size={15} className={note.location ? "text-primary" : "text-fg-muted"} />
                   {t.day_location}
-                </button>
-                <button
-                  type="button"
+                </MenuItem>
+                <MenuItem
+                  icon={<CalendarClock size={15} />}
                   onClick={() => setMoveDateOpen((v) => !v)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
                 >
-                  <CalendarClock size={15} className="text-fg-muted" />
                   {t.day_move_date}
-                </button>
-                <button
-                  type="button"
+                </MenuItem>
+                <MenuItem
+                  icon={<Lock size={15} className={locked ? "text-primary" : undefined} />}
                   onClick={toggleLock}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-fg hover:bg-surface-muted"
                 >
-                  <Lock size={15} className={locked ? "text-primary" : "text-fg-muted"} />
                   {locked ? t.day_unlock : t.day_lock}
-                </button>
+                </MenuItem>
+                {canMoveUp && (
+                  <MenuItem icon={<ChevronUp size={15} />} onClick={() => onMove(note.id, -1)}>
+                    {t.day_move_up}
+                  </MenuItem>
+                )}
+                {canMoveDown && (
+                  <MenuItem icon={<ChevronDown size={15} />} onClick={() => onMove(note.id, 1)}>
+                    {t.day_move_down}
+                  </MenuItem>
+                )}
+                {note.type !== "text" && (
+                  <MenuItem
+                    icon={<RefreshCw size={15} className={replacing ? "animate-spin" : ""} />}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {t.day_replace_media}
+                  </MenuItem>
+                )}
+                <MenuItem icon={<Trash2 size={15} />} onClick={remove} danger>
+                  {t.day_delete}
+                </MenuItem>
               </div>
             )}
           </div>
-          {canMoveUp && (
-            <button
-              type="button"
-              onClick={() => onMove(note.id, -1)}
-              aria-label={t.day_move_up}
-              className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
-            >
-              <ChevronUp size={16} />
-            </button>
-          )}
-          {canMoveDown && (
-            <button
-              type="button"
-              onClick={() => onMove(note.id, 1)}
-              aria-label={t.day_move_down}
-              className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
-            >
-              <ChevronDown size={16} />
-            </button>
-          )}
-          {note.type !== "text" && (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={
-                  note.type === "audio" ? "audio/*" : note.type === "video" ? "video/*" : "image/*"
-                }
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) replaceMedia(file);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={replacing}
-                aria-label={t.day_replace_media}
-                className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:opacity-50"
-              >
-                <RefreshCw size={15} className={replacing ? "animate-spin" : ""} />
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            onClick={remove}
-            aria-label={t.day_delete}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted hover:text-danger"
-          >
-            <Trash2 size={16} />
-          </button>
         </div>
       </div>
 
@@ -442,7 +491,7 @@ function NoteCard({
               key={tag}
               type="button"
               onClick={() => onOpenTag(tag)}
-              className="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-fg-muted transition hover:bg-primary/15 hover:text-primary"
+              className="min-h-8 cursor-pointer rounded-full bg-surface-muted px-2.5 text-xs font-medium text-fg-muted transition hover:bg-primary/15 hover:text-primary"
             >
               #{tag}
             </button>
@@ -508,7 +557,7 @@ function NoteCard({
                 type="button"
                 onClick={disableShare}
                 aria-label={t.day_share_off}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-ui text-fg-muted transition hover:bg-surface hover:text-danger"
+                className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface hover:text-danger"
               >
                 <X size={14} />
               </button>
@@ -524,7 +573,12 @@ function NoteCard({
               key={m}
               type="button"
               onClick={() => changeMood(m)}
-              className="grid h-10 w-10 place-items-center rounded-full transition hover:bg-surface-muted"
+              aria-label={m}
+              aria-pressed={note.mood === m}
+              className={cn(
+                "grid h-10 w-10 cursor-pointer place-items-center rounded-full transition active:scale-95 hover:bg-surface-muted",
+                note.mood === m && "ring-2 ring-primary",
+              )}
             >
               <MoodEmoji mood={m} size={20} />
             </button>
@@ -534,9 +588,9 @@ function NoteCard({
               type="button"
               onClick={() => changeMood(null)}
               aria-label={t.day_mood_clear}
-              className="grid h-10 w-10 place-items-center rounded-full text-fg-muted transition hover:bg-surface-muted"
+              className="grid h-10 w-10 cursor-pointer place-items-center rounded-full text-fg-muted transition hover:bg-surface-muted"
             >
-              ✕
+              <X size={18} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -557,7 +611,8 @@ function NoteCard({
             <img
               key={url}
               src={url}
-              alt=""
+              alt={t.photo_alt(note.date)}
+              loading="lazy"
               className={cn(
                 "rounded-ui object-cover",
                 note.mediaUrls.length > 1
@@ -570,7 +625,13 @@ function NoteCard({
       )}
 
       {note.type === "video" && note.mediaUrl && (
-        <video src={note.mediaUrl} controls className="mt-2 max-h-80 w-full rounded-ui bg-black" />
+        <video
+          src={note.mediaUrl}
+          controls
+          preload="metadata"
+          aria-label={t.video_label(note.date)}
+          className="mt-2 max-h-80 w-full rounded-ui bg-black"
+        />
       )}
 
       {editing ? (
@@ -597,12 +658,17 @@ function NoteCard({
           </div>
         </div>
       ) : (
-        <div
+        <button
+          type="button"
           onClick={() => setEditing(true)}
-          className={cn("mt-1 text-sm", note.text ? "text-fg" : "text-fg-muted")}
+          aria-label={t.day_edit_text}
+          className={cn(
+            "mt-1 -mx-1 block w-[calc(100%+0.5rem)] cursor-pointer rounded-ui px-1 py-0.5 text-left text-sm outline-none transition hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-ring",
+            note.text ? "text-fg" : "text-fg-muted",
+          )}
         >
           {note.text ? renderLite(note.text) : note.type !== "text" ? t.day_add_caption : ""}
-        </div>
+        </button>
       )}
     </div>
   );
@@ -671,7 +737,7 @@ export function DayScreen({
             type="button"
             onClick={onBack}
             aria-label={t.day_back}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <ArrowLeft size={18} />
           </button>
@@ -682,7 +748,7 @@ export function DayScreen({
               type="button"
               onClick={() => onNavigate(shiftDate(date, -1))}
               aria-label={t.day_prev}
-              className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+              className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
             >
               <ChevronLeft size={18} />
             </button>
@@ -691,7 +757,7 @@ export function DayScreen({
               onClick={() => onNavigate(shiftDate(date, 1))}
               disabled={isToday}
               aria-label={t.day_next}
-              className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:opacity-30"
+              className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-30"
             >
               <ChevronRight size={18} />
             </button>
@@ -713,19 +779,20 @@ export function DayScreen({
                   onClick={fetchSummary}
                   disabled={summaryLoading}
                   aria-label={t.day_summary_retry}
-                  className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:opacity-50"
+                  className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <RefreshCw size={14} className={summaryLoading ? "animate-spin" : ""} />
                 </button>
               )}
             </div>
-            <p className="mt-1.5 text-sm text-fg">
-              {summaryLoading ? (
-                <span className="text-fg-muted">{t.day_summary_loading}</span>
-              ) : (
-                summary
-              )}
-            </p>
+            {summaryLoading ? (
+              <div className="mt-1.5 space-y-1.5" role="status" aria-label={t.day_summary_loading}>
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-3/5" />
+              </div>
+            ) : (
+              <p className="mt-1.5 text-sm text-fg">{summary}</p>
+            )}
           </div>
         )}
 
@@ -757,6 +824,9 @@ export function DayScreen({
                 });
               }}
               onDeleted={(id) => setNotes((prev) => (prev ?? []).filter((n) => n.id !== id))}
+              /* ponytail: hoan tac chi them lai vao cuoi danh sach, khong tra
+                 dung vi tri cu — mo lai ngay la dung thu tu server. */
+              onRestored={(restored) => setNotes((prev) => [...(prev ?? []), restored])}
               onMovedToOtherDate={(id) => setNotes((prev) => (prev ?? []).filter((n) => n.id !== id))}
               onOpenTag={onOpenTag}
               onSaved={(updated) =>

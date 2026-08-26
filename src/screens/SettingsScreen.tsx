@@ -6,7 +6,17 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { ThemeToggle } from "../ui/theme";
 import { Switch } from "../ui/Switch";
 import { Avatar } from "../ui/Avatar";
-import { Images, Languages, BarChart3, FileJson, FileText, LogOut, Tag as TagIcon, Trash2 } from "lucide-react";
+import {
+  Images,
+  Languages,
+  BarChart3,
+  ChevronRight,
+  FileJson,
+  FileText,
+  LogOut,
+  Tag as TagIcon,
+  Trash2,
+} from "lucide-react";
 import {
   getReminderTime,
   isReminderEnabled,
@@ -19,6 +29,7 @@ import { clearPin, getIdleLockMinutes, isPinSet, setIdleLockMinutes, setPin } fr
 import { ACCENT_PRESETS, getAccentHue, setAccentHue } from "../accentColor";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
+import { Skeleton } from "../ui/states";
 import { cn } from "../ui/cn";
 
 function formatBytes(bytes: number): string {
@@ -151,19 +162,25 @@ export function SettingsScreen({
 
         <div className="rounded-ui border border-border bg-surface p-3">
           <p className="mb-2 text-sm text-fg">{t.settings_accent}</p>
-          <div className="flex gap-2">
+          <div role="group" aria-label={t.settings_accent} className="flex gap-1">
             {ACCENT_PRESETS.map(({ id, hue }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => pickAccent(hue)}
-                aria-label={t[`accent_${id}` as keyof typeof t] as string}
-                style={{ background: `oklch(45% 0.13 ${hue})` }}
-                className={cn(
-                  "h-8 w-8 rounded-full transition",
-                  accentHue === hue && "ring-2 ring-offset-2 ring-offset-surface ring-fg",
-                )}
-              />
+                aria-label={t.settings_accent_label(t[`accent_${id}` as keyof typeof t] as string)}
+                aria-pressed={accentHue === hue}
+                className="grid h-10 w-10 cursor-pointer place-items-center rounded-full transition active:scale-95"
+              >
+                <span
+                  aria-hidden="true"
+                  style={{ background: `oklch(45% 0.13 ${hue})` }}
+                  className={cn(
+                    "h-8 w-8 rounded-full transition",
+                    accentHue === hue && "ring-2 ring-offset-2 ring-offset-surface ring-fg",
+                  )}
+                />
+              </button>
             ))}
           </div>
         </div>
@@ -180,9 +197,13 @@ export function SettingsScreen({
             <BarChart3 className="h-4 w-4 text-fg-muted" aria-hidden="true" />
             {t.settings_stats}
           </span>
-          <span className="text-sm text-fg-muted">
-            {stats ? `${formatBytes(stats.mediaBytes)} · ${t.settings_stats_notes(stats.noteCount)}` : "…"}
-          </span>
+          {stats ? (
+            <span className="text-sm text-fg-muted">
+              {`${formatBytes(stats.mediaBytes)} · ${t.settings_stats_notes(stats.noteCount)}`}
+            </span>
+          ) : (
+            <Skeleton className="h-4 w-32" />
+          )}
         </div>
 
         <div className="rounded-ui border border-border bg-surface p-3">
@@ -278,63 +299,68 @@ export function SettingsScreen({
         <button
           type="button"
           onClick={onOpenTags}
-          className="flex w-full items-center justify-between rounded-ui border border-border bg-surface p-3 text-left"
+          className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-ui border border-border bg-surface p-3 text-left transition hover:bg-surface-muted"
         >
           <span className="flex items-center gap-2 text-sm text-fg">
             <TagIcon className="h-4 w-4 text-fg-muted" aria-hidden="true" />
             {t.settings_manage_tags}
           </span>
+          <ChevronRight size={16} aria-hidden="true" className="text-fg-muted" />
         </button>
 
         <button
           type="button"
           onClick={onOpenTrash}
-          className="flex w-full items-center justify-between rounded-ui border border-border bg-surface p-3 text-left"
+          className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-ui border border-border bg-surface p-3 text-left transition hover:bg-surface-muted"
         >
           <span className="flex items-center gap-2 text-sm text-fg">
             <Trash2 className="h-4 w-4 text-fg-muted" aria-hidden="true" />
             {t.settings_trash}
           </span>
+          <ChevronRight size={16} aria-hidden="true" className="text-fg-muted" />
         </button>
 
         <button
           type="button"
           onClick={onOpenAlbum}
-          className="flex w-full items-center justify-between rounded-ui border border-border bg-surface p-3 text-left"
+          className="flex min-h-11 w-full cursor-pointer items-center justify-between rounded-ui border border-border bg-surface p-3 text-left transition hover:bg-surface-muted"
         >
           <span className="flex items-center gap-2 text-sm text-fg">
             <Images className="h-4 w-4 text-fg-muted" aria-hidden="true" />
             {t.settings_album}
           </span>
+          <ChevronRight size={16} aria-hidden="true" className="text-fg-muted" />
         </button>
 
         <div className="rounded-ui border border-border bg-surface p-3">
           <span className="text-sm text-fg">{t.settings_export}</span>
           <div className="mt-2 flex gap-2">
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              className="flex-1 gap-2"
               onClick={() => exportNotes("json")}
+              loading={exporting === "json"}
               disabled={exporting !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-ui border border-border py-2 text-sm font-medium text-fg transition hover:bg-surface-muted disabled:opacity-60"
             >
               <FileJson className="h-4 w-4" aria-hidden="true" />
               {exporting === "json" ? t.settings_exporting : "JSON"}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 gap-2"
               onClick={() => exportNotes("markdown")}
+              loading={exporting === "markdown"}
               disabled={exporting !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-ui border border-border py-2 text-sm font-medium text-fg transition hover:bg-surface-muted disabled:opacity-60"
             >
               <FileText className="h-4 w-4" aria-hidden="true" />
               {exporting === "markdown" ? t.settings_exporting : "Markdown"}
-            </button>
+            </Button>
           </div>
         </div>
 
         <a
           href="/logout"
-          className="flex items-center justify-center gap-2 rounded-ui border border-border bg-surface p-3 text-center text-sm font-medium text-danger"
+          className="mt-6 flex min-h-11 items-center justify-center gap-2 rounded-ui border border-danger/40 bg-danger-soft p-3 text-center text-sm font-medium text-danger transition hover:bg-danger/15"
         >
           <LogOut className="h-4 w-4" aria-hidden="true" />
           {t.settings_logout}

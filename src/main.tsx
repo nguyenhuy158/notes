@@ -5,6 +5,7 @@ import { App } from "./App";
 import { I18nProvider } from "./i18n";
 import { ThemeProvider } from "./ui/theme";
 import { ToastProvider } from "./ui/Toast";
+import { DialogProvider } from "./ui/ConfirmDialog";
 import { startReminderLoop } from "./reminder";
 import { applyAccentHue, getAccentHue } from "./accentColor";
 import { flushOfflineQueue } from "./offlineQueue";
@@ -28,7 +29,9 @@ createRoot(document.getElementById("root")!).render(
     <I18nProvider>
       <ThemeProvider>
         <ToastProvider>
-          <App />
+          <DialogProvider>
+            <App />
+          </DialogProvider>
         </ToastProvider>
       </ThemeProvider>
     </I18nProvider>

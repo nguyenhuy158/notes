@@ -61,7 +61,8 @@ export function ShareScreen({ token }: { token: string }) {
                   <img
                     key={url}
                     src={url}
-                    alt=""
+                    alt={note.text || t.photo_alt(note.date)}
+                    loading="lazy"
                     className={cn(
                       "rounded-ui object-cover",
                       note.mediaUrls.length > 1 ? "h-64 w-64 shrink-0" : "max-h-96 w-full",

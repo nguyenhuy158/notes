@@ -37,10 +37,18 @@ export function PinLockScreen({ onUnlock }: { onUnlock: () => void }) {
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
           onKeyDown={(e) => e.key === "Enter" && pin && submit()}
+          aria-label={t.pin_enter_title}
+          aria-invalid={error}
+          aria-describedby={error ? "pin-error" : undefined}
+          autoComplete="current-password"
           className="mt-4 text-center text-lg tracking-[0.5em]"
         />
 
-        {error && <p className="mt-2 text-xs text-danger">{t.pin_wrong}</p>}
+        {error && (
+          <p id="pin-error" role="alert" className="mt-2 text-xs text-danger">
+            {t.pin_wrong}
+          </p>
+        )}
 
         <Button block className="mt-4" disabled={!pin || busy} loading={busy} onClick={submit}>
           {t.pin_unlock}

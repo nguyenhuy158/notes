@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { X } from "lucide-react";
+import { useI18n } from "../i18n";
 import { cn } from "./cn";
 
 const MAX_TAGS = 5;
@@ -18,6 +19,7 @@ export function TagChipInput({
   onChange: (tags: string[]) => void;
   autoFocus?: boolean;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState("");
   const [known, setKnown] = useState<string[]>([]);
 
@@ -57,8 +59,14 @@ export function TagChipInput({
             className="flex items-center gap-1 rounded-full bg-surface-muted px-2 py-1 text-xs font-medium text-fg"
           >
             #{tag}
-            <button type="button" onClick={() => removeTag(tag)} className="text-fg-muted hover:text-danger">
-              <X size={11} />
+            {/* -m-1 p-1: vung cham rong hon icon 12px, khong lam chip cao them. */}
+            <button
+              type="button"
+              onClick={() => removeTag(tag)}
+              aria-label={t.tag_remove(tag)}
+              className="-m-1 cursor-pointer p-1 text-fg-muted transition hover:text-danger"
+            >
+              <X size={12} aria-hidden="true" />
             </button>
           </span>
         ))}
@@ -75,7 +83,8 @@ export function TagChipInput({
                 removeTag(tags[tags.length - 1]);
               }
             }}
-            placeholder={tags.length === 0 ? "vd: gia đình, du lịch" : ""}
+            aria-label={t.day_tags}
+            placeholder={tags.length === 0 ? t.tags_input_placeholder : ""}
             className="min-w-[80px] flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-fg-muted"
           />
         )}
@@ -89,7 +98,7 @@ export function TagChipInput({
               type="button"
               onClick={() => addTag(tag)}
               className={cn(
-                "rounded-full border border-border px-2 py-1 text-xs text-fg-muted transition hover:bg-surface-muted",
+                "min-h-8 cursor-pointer rounded-full border border-border px-2.5 text-xs text-fg-muted transition hover:bg-surface-muted",
               )}
             >
               #{tag}

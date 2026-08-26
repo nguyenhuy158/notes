@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "./cn";
 
 /* Ngay luon o dang chuoi "YYYY-MM-DD", khong dung Date cho gia tri.
@@ -146,9 +147,9 @@ export function DatePicker({
               type="button"
               onClick={() => shiftMonth(-1)}
               aria-label="Tháng trước"
-              className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+              className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted active:scale-95"
             >
-              ‹
+              <ChevronLeft size={18} aria-hidden="true" />
             </button>
             <span className="text-sm font-semibold text-fg">
               Tháng {view.month + 1} / {view.year}
@@ -157,9 +158,9 @@ export function DatePicker({
               type="button"
               onClick={() => shiftMonth(1)}
               aria-label="Tháng sau"
-              className="grid h-8 w-8 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+              className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted active:scale-95"
             >
-              ›
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </div>
 
