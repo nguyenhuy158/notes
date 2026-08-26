@@ -77,7 +77,8 @@ export function TagsScreen({
                   onChange={(e) => setRenameDraft(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && submitRename()}
                   onBlur={submitRename}
-                  className="min-w-0 flex-1 rounded-ui border border-border bg-surface px-2 py-1 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={t.tag_rename}
+                  className="min-h-11 min-w-0 flex-1 rounded-ui border border-border bg-surface px-2 py-1 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
             ) : (
@@ -88,7 +89,7 @@ export function TagsScreen({
                 <button
                   type="button"
                   onClick={() => onOpenTag(tag)}
-                  className="min-w-0 flex-1 text-left"
+                  className="min-h-11 min-w-0 flex-1 cursor-pointer text-left"
                 >
                   <span className="text-sm font-medium text-fg">#{tag}</span>
                   <span className="ml-2 text-xs text-fg-muted">{t.tags_screen_count(count)}</span>
@@ -97,9 +98,9 @@ export function TagsScreen({
                   type="button"
                   onClick={() => startRename(tag)}
                   aria-label={t.tag_rename}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+                  className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted active:scale-95"
                 >
-                  <Pencil size={15} />
+                  <Pencil size={15} aria-hidden="true" />
                 </button>
               </div>
             ),

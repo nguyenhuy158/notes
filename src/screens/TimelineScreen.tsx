@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
-import { Camera, Mic, PenLine, Search, Video } from "lucide-react";
+import { Camera, Flame, Mic, PenLine, Search, Video, X } from "lucide-react";
 import { api, MOODS } from "../api";
 import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
@@ -15,6 +15,7 @@ import {
   todayString,
 } from "../date";
 import { cn } from "../ui/cn";
+import { EmptyState, Skeleton, SkeletonListRow } from "../ui/states";
 
 const MONTHS_PAGE = 6;
 
@@ -48,6 +49,7 @@ export function TimelineScreen({
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [exhausted, setExhausted] = useState(false);
   const [streak, setStreak] = useState(0);
   const [typeFilter, setTypeFilter] = useState<NoteType | null>(null);
   const [moodFilter, setMoodFilter] = useState<string | null>(null);
@@ -86,7 +88,11 @@ export function TimelineScreen({
             tags: tagsByDate[date] ?? [],
           }))
           .sort((a, b) => (a.date < b.date ? 1 : -1));
-        setEntries(list);
+        // Khong co API tong so thang; tai them ma khong ra ngay moi = het du lieu.
+        setEntries((prev) => {
+          if (monthsBack > MONTHS_PAGE && list.length === prev.length) setExhausted(true);
+          return list;
+        });
         setStreak(computeStreak(new Set(Object.keys(days))));
       })
       .catch(() => {})
@@ -152,33 +158,141 @@ export function TimelineScreen({
 
   return (
     <div className="px-4 py-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-base font-semibold text-fg">{t.timeline_title}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold tracking-tight text-fg">{t.timeline_title}</h1>
         {streak > 0 && (
-          <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg">
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-fg">
+            <Flame size={13} aria-hidden="true" className="text-primary" />
             {t.timeline_streak(streak)}
           </span>
         )}
       </div>
 
-      <div className="relative mt-3">
-        <Search
-          size={16}
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t.timeline_search_placeholder}
-          className="w-full rounded-ui border border-border bg-surface py-2 pl-9 pr-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
+      {/* Sticky: cuon dai van doi duoc bo loc/tim kiem ma khong phai keo len dau. */}
+      <div className="sticky top-0 z-10 -mx-4 mt-3 bg-bg/95 px-4 pb-2 pt-1 backdrop-blur">
+        <div className="relative">
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label={t.timeline_search_placeholder}
+            placeholder={t.timeline_search_placeholder}
+            className="h-11 w-full rounded-ui border border-border bg-surface pl-9 pr-11 text-base text-fg outline-none focus-visible:ring-2 focus-visible:ring-ring sm:pointer-fine:text-sm"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label={t.timeline_search_clear}
+              className="absolute right-0.5 top-1/2 grid h-10 w-10 -translate-y-1/2 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:text-fg"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+
+        {!query.trim() && (
+          <>
+            <div
+              role="group"
+              aria-label={t.timeline_filter_type}
+              className="mt-2 flex flex-wrap gap-1.5"
+            >
+              {FILTERS.map(({ id, label, icon: Icon }) => {
+                const active = id === typeFilter;
+                return (
+                  <button
+                    key={id ?? "all"}
+                    type="button"
+                    onClick={() => setTypeFilter(id)}
+                    aria-pressed={active}
+                    className={cn(
+                      "flex min-h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition active:scale-[0.98]",
+                      active
+                        ? "border-primary bg-primary text-primary-fg"
+                        : "border-border text-fg-muted hover:bg-surface-muted",
+                    )}
+                  >
+                    {Icon && <Icon size={13} aria-hidden="true" />}
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div
+              role="group"
+              aria-label={t.timeline_filter_mood}
+              className="mt-1.5 flex flex-wrap items-center gap-1"
+            >
+              {MOODS.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMoodFilter((prev) => (prev === m ? null : m))}
+                  aria-pressed={moodFilter === m}
+                  aria-label={t.timeline_filter_mood_name(m)}
+                  className={cn(
+                    "grid h-10 w-10 cursor-pointer place-items-center rounded-full border transition active:scale-95",
+                    moodFilter === m
+                      ? "border-primary bg-primary/10"
+                      : "border-transparent hover:bg-surface-muted",
+                  )}
+                >
+                  <MoodEmoji mood={m} size={20} />
+                </button>
+              ))}
+            </div>
+
+            {knownTags.length > 0 && (
+              <div
+                role="group"
+                aria-label={t.timeline_filter_tag}
+                className="mt-1.5 flex flex-wrap gap-1.5"
+              >
+                {knownTags.map((tag) => {
+                  const active = tagFilter === tag;
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setTagFilter(active ? null : tag)}
+                      aria-pressed={active}
+                      className={cn(
+                        "min-h-8 cursor-pointer rounded-full border px-3 text-xs font-medium transition active:scale-[0.98]",
+                        active
+                          ? "border-primary bg-primary text-primary-fg"
+                          : "border-border text-fg-muted hover:bg-surface-muted",
+                      )}
+                    >
+                      #{tag}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {query.trim() ? (
-        <div className="mt-4">
+        <div className="mt-2">
+          {searching && (
+            <div className="space-y-2" aria-hidden="true">
+              <Skeleton className="h-16 w-full rounded-ui" />
+              <Skeleton className="h-16 w-full rounded-ui" />
+            </div>
+          )}
+          <p aria-live="polite" className="sr-only">
+            {searching ? t.timeline_searching : t.timeline_note_count(searchResults.length)}
+          </p>
           {!searching && searchResults.length === 0 && (
-            <p className="text-sm text-fg-muted">{t.timeline_search_empty}</p>
+            <EmptyState title={t.timeline_search_empty} icon={<Search size={22} />} />
           )}
           <ul className="space-y-2">
             {searchResults.map((note) => (
@@ -186,7 +300,7 @@ export function TimelineScreen({
                 <button
                   type="button"
                   onClick={() => onOpenDay(note.date)}
-                  className="block w-full rounded-ui border border-border bg-surface p-3 text-left outline-none transition hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-ring"
+                  className="block w-full cursor-pointer rounded-ui border border-border bg-surface p-3 text-left outline-none transition hover:bg-surface-muted active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span className="block text-xs font-medium text-fg-muted">
                     {formatVi(note.date)}
@@ -201,65 +315,20 @@ export function TimelineScreen({
         </div>
       ) : (
         <>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {FILTERS.map(({ id, label, icon: Icon }) => {
-              const active = id === typeFilter;
-              return (
-                <button
-                  key={id ?? "all"}
-                  type="button"
-                  onClick={() => setTypeFilter(id)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition",
-                    active
-                      ? "border-primary bg-primary text-primary-fg"
-                      : "border-border text-fg-muted hover:bg-surface-muted",
-                  )}
-                >
-                  {Icon && <Icon size={13} />}
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {MOODS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMoodFilter((prev) => (prev === m ? null : m))}
-                className={cn(
-                  "grid h-8 w-8 place-items-center rounded-full border transition",
-                  moodFilter === m
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:bg-surface-muted",
-                )}
-              >
-                <MoodEmoji mood={m} size={18} />
-              </button>
-            ))}
-            {knownTags.length > 0 && (
-              <select
-                value={tagFilter ?? ""}
-                onChange={(e) => setTagFilter(e.target.value || null)}
-                className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-fg-muted outline-none"
-              >
-                <option value="">#{t.timeline_filter_all}</option>
-                {knownTags.map((tag) => (
-                  <option key={tag} value={tag}>
-                    #{tag}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
           {loading && (
-            <p className="mt-4 text-sm text-fg-muted">{t.timeline_loading}</p>
+            <div className="mt-2">
+              {Array.from({ length: 6 }, (_, i) => (
+                <SkeletonListRow key={i} avatar />
+              ))}
+            </div>
           )}
           {!loading && filteredEntries.length === 0 && (
-            <p className="mt-4 text-sm text-fg-muted">{t.timeline_empty}</p>
+            <EmptyState
+              className="mt-4"
+              title={t.timeline_empty}
+              description={t.day_empty_desc}
+              icon={<PenLine size={22} />}
+            />
           )}
 
           {!loading &&
@@ -284,11 +353,11 @@ export function TimelineScreen({
                           key={date}
                           type="button"
                           onClick={() => onOpenDay(date)}
-                          className="relative flex w-full items-center gap-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="relative -mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center gap-3 rounded-ui px-2 py-2.5 text-left outline-none transition hover:bg-surface-muted active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <span
                             className={cn(
-                              "absolute -left-5 h-3 w-3 rounded-full border-2 border-surface",
+                              "absolute -left-3 h-3 w-3 rounded-full border-2 border-bg",
                               isToday ? "bg-primary" : "bg-fg-muted",
                             )}
                           />
@@ -329,15 +398,18 @@ export function TimelineScreen({
               );
             })}
 
-          {!loading && (
+          {!loading && filteredEntries.length > 0 && !exhausted && (
             <button
               type="button"
               onClick={() => setMonthsBack((m) => m + MONTHS_PAGE)}
               disabled={loadingMore}
-              className="mt-5 w-full rounded-ui border border-dashed border-border py-2.5 text-center text-sm font-medium text-fg-muted transition hover:bg-surface-muted disabled:opacity-60"
+              className="mt-5 min-h-11 w-full cursor-pointer rounded-ui border border-dashed border-border text-center text-sm font-medium text-fg-muted transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loadingMore ? t.timeline_loading_more : t.timeline_load_more}
             </button>
+          )}
+          {exhausted && filteredEntries.length > 0 && (
+            <p className="mt-5 text-center text-xs text-fg-muted">{t.timeline_all_loaded}</p>
           )}
         </>
       )}

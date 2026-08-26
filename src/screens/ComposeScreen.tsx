@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { api, MOODS, type Mood, type NoteType } from "../api";
 import { MoodEmoji } from "../moodEmojis";
 import { useI18n } from "../i18n";
@@ -7,8 +7,20 @@ import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
 import { useToast } from "../ui/Toast";
+import { useDialog } from "../ui/ConfirmDialog";
 import { cn } from "../ui/cn";
-import { ArrowLeft, Camera, MapPin, Mic, MicOff, Square, Type, Video, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  MapPin,
+  MessageCircle,
+  Mic,
+  MicOff,
+  Square,
+  Type,
+  Video,
+  X,
+} from "lucide-react";
 import { compressImage } from "../lib/compressImage";
 import { randomPrompt } from "../writingPrompts";
 import { isNetworkError, queueCreate, queueUpdate } from "../offlineQueue";
@@ -98,9 +110,11 @@ function TextComposer({
         <button
           type="button"
           onClick={() => onChange(`${prompt}\n`)}
-          className="block w-full rounded-ui border border-dashed border-border p-2 text-left text-xs text-fg-muted transition hover:bg-surface-muted"
+          aria-label={t.compose_prompt_label}
+          className="flex w-full cursor-pointer items-start gap-1.5 rounded-ui border border-dashed border-border p-2 text-left text-xs text-fg-muted transition hover:bg-surface-muted"
         >
-          💭 {prompt}
+          <MessageCircle size={14} aria-hidden="true" className="mt-px shrink-0" />
+          {prompt}
           <span className="ml-1 font-medium text-primary">{t.compose_prompt_use}</span>
         </button>
       )}
@@ -134,7 +148,7 @@ function TextComposer({
         )}
       </div>
 
-      <p className="text-xs text-fg-muted">
+      <p role="status" aria-live="polite" className="text-xs text-fg-muted">
         {status === "saving" && t.day_saving}
         {status === "saved" && savedAt && t.day_saved_at(formatTime(savedAt))}
         {status === "queued" && t.offline_queued}
@@ -154,12 +168,24 @@ function pickSupportedMime(): string | undefined {
   return AUDIO_MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type));
 }
 
-function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; saving: boolean }) {
+function AudioComposer({
+  onSave,
+  saving,
+  onDirty,
+}: {
+  onSave: (blob: Blob) => void;
+  saving: boolean;
+  onDirty: (dirty: boolean) => void;
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [blob, setBlob] = useState<Blob | null>(null);
+  useEffect(() => {
+    onDirty(blob !== null);
+    return () => onDirty(false);
+  }, [blob, onDirty]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -223,7 +249,8 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
 
       {recording && (
         <>
-          <span className="tabular text-2xl font-semibold text-fg">
+          {/* aria-live off: dem tung giay ma doc len thi screen reader noi lien tuc. */}
+          <span role="timer" aria-live="off" className="tabular text-2xl font-semibold text-fg">
             {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}
           </span>
           <button
@@ -254,12 +281,31 @@ function AudioComposer({ onSave, saving }: { onSave: (blob: Blob) => void; savin
   );
 }
 
-function PhotoComposer({ onSave, saving }: { onSave: (files: File[]) => void; saving: boolean }) {
+function PhotoComposer({
+  onSave,
+  saving,
+  onDirty,
+}: {
+  onSave: (files: File[]) => void;
+  saving: boolean;
+  onDirty: (dirty: boolean) => void;
+}) {
   const { t } = useI18n();
   const toast = useToast();
   const [files, setFiles] = useState<File[]>([]);
+  useEffect(() => {
+    onDirty(files.length > 0);
+    return () => onDirty(false);
+  }, [files, onDirty]);
   const [compressing, setCompressing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /* Truoc day goi URL.createObjectURL ngay trong render: moi lan render tao
+     mot blob URL moi va khong ai revoke -> ro ri bo nho theo so lan render. */
+  const previews = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
+  useEffect(() => {
+    return () => previews.forEach((url) => URL.revokeObjectURL(url));
+  }, [previews]);
 
   async function onPick(picked: FileList | null) {
     if (!picked || picked.length === 0) return;
@@ -309,19 +355,23 @@ function PhotoComposer({ onSave, saving }: { onSave: (files: File[]) => void; sa
       {files.length > 0 && (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            {files.map((f, i) => (
-              <div key={i} className="relative">
+            {previews.map((url, i) => (
+              <div key={url} className="relative">
                 <img
-                  src={URL.createObjectURL(f)}
-                  alt=""
+                  src={url}
+                  alt={t.compose_photo_preview_alt(i + 1)}
                   className="aspect-square w-full rounded-ui object-cover"
                 />
+                {/* Vung bam 40px trong suot, chi cai vien do 24px la thay duoc. */}
                 <button
                   type="button"
                   onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
-                  className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-danger text-white"
+                  aria-label={t.compose_photo_remove}
+                  className="absolute -right-3 -top-3 grid h-10 w-10 cursor-pointer place-items-center rounded-full transition active:scale-95"
                 >
-                  <X size={12} />
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-danger text-white shadow">
+                    <X size={12} aria-hidden="true" />
+                  </span>
                 </button>
               </div>
             ))}
@@ -386,13 +436,19 @@ function extractVideoFrame(file: File): Promise<Blob | null> {
 function VideoComposer({
   onSave,
   saving,
+  onDirty,
 }: {
   onSave: (file: File, poster: Blob | null) => void;
   saving: boolean;
+  onDirty: (dirty: boolean) => void;
 }) {
   const { t } = useI18n();
   const toast = useToast();
   const [file, setFile] = useState<File | null>(null);
+  useEffect(() => {
+    onDirty(file !== null);
+    return () => onDirty(false);
+  }, [file, onDirty]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -489,15 +545,18 @@ function LocationInput({ value, onChange }: { value: string; onChange: (v: strin
 }
 
 function MoodPicker({ mood, onChange }: { mood: Mood | null; onChange: (mood: Mood | null) => void }) {
+  const { t } = useI18n();
   return (
-    <div className="mb-4 flex flex-wrap gap-1.5">
+    <div role="group" aria-label={t.timeline_filter_mood} className="mb-4 flex flex-wrap gap-1.5">
       {MOODS.map((m) => (
         <button
           key={m}
           type="button"
           onClick={() => onChange(mood === m ? null : m)}
+          aria-label={m}
+          aria-pressed={mood === m}
           className={cn(
-            "grid h-10 w-10 place-items-center rounded-full transition",
+            "grid h-10 w-10 cursor-pointer place-items-center rounded-full transition active:scale-95",
             mood === m ? "ring-2 ring-primary" : "hover:bg-surface-muted",
           )}
         >
@@ -519,11 +578,28 @@ export function ComposeScreen({
 }) {
   const { t } = useI18n();
   const toast = useToast();
+  const dialog = useDialog();
   const [tab, setTab] = useState<NoteType>("text");
   const [saving, setSaving] = useState(false);
   const [mood, setMood] = useState<Mood | null>(null);
   const [location, setLocation] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [mediaDirty, setMediaDirty] = useState(false);
+
+  /* File da ghi/chon nhung chua bam Luu chi nam trong bo nho -> bam back la
+     mat. Text thi tu luu nen khong can hoi. */
+  function confirmDiscard() {
+    if (!mediaDirty) return Promise.resolve(true);
+    return dialog.confirm({ title: t.compose_discard_confirm, confirmLabel: t.compose_discard, tone: "danger" });
+  }
+
+  async function backGuarded() {
+    if (await confirmDiscard()) onBack();
+  }
+
+  async function changeTab(id: NoteType) {
+    if (id !== tab && (await confirmDiscard())) setTab(id);
+  }
 
   const TABS: { id: NoteType; label: string; icon: typeof Type }[] = [
     { id: "text", label: t.compose_tab_text, icon: Type },
@@ -531,6 +607,17 @@ export function ComposeScreen({
     { id: "photo", label: t.compose_tab_photo, icon: Camera },
     { id: "video", label: t.compose_tab_video, icon: Video },
   ];
+
+  // Trai/phai chuyen tab theo chuan ARIA tablist (roving tabIndex ben duoi).
+  function onTabKeyDown(e: KeyboardEvent) {
+    const delta = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!delta) return;
+    e.preventDefault();
+    const index = TABS.findIndex((x) => x.id === tab);
+    const next = TABS[(index + delta + TABS.length) % TABS.length];
+    changeTab(next.id);
+    document.getElementById(`compose-tab-${next.id}`)?.focus();
+  }
 
   async function saveMedia(
     type: "audio" | "photo" | "video",
@@ -557,9 +644,9 @@ export function ComposeScreen({
         leading={
           <button
             type="button"
-            onClick={onBack}
+            onClick={backGuarded}
             aria-label={t.day_back}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
             <ArrowLeft size={18} />
           </button>
@@ -567,16 +654,24 @@ export function ComposeScreen({
       />
 
       <div className="px-4 py-4">
-        <div role="tablist" className="grid grid-cols-4 gap-1 rounded-ui border border-border p-1">
+        <div
+          role="tablist"
+          aria-label={t.compose_title}
+          className="grid grid-cols-4 gap-1 rounded-ui border border-border p-1"
+        >
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               role="tab"
+              id={`compose-tab-${id}`}
+              aria-controls="compose-tabpanel"
               aria-selected={tab === id}
-              onClick={() => setTab(id)}
+              tabIndex={tab === id ? 0 : -1}
+              onKeyDown={onTabKeyDown}
+              onClick={() => changeTab(id)}
               className={cn(
-                "flex flex-col items-center gap-1 rounded-ui py-2 text-xs font-medium transition",
+                "flex cursor-pointer flex-col items-center gap-1 rounded-ui py-2 text-xs font-medium transition active:scale-95",
                 tab === id ? "bg-primary text-primary-fg" : "text-fg-muted hover:bg-surface-muted"
               )}
             >
@@ -586,7 +681,12 @@ export function ComposeScreen({
           ))}
         </div>
 
-        <div className="mt-4">
+        <div
+          id="compose-tabpanel"
+          role="tabpanel"
+          aria-labelledby={`compose-tab-${tab}`}
+          className="mt-4"
+        >
           <MoodPicker mood={mood} onChange={setMood} />
           <LocationInput value={location} onChange={setLocation} />
           <div className="mb-4">
@@ -600,6 +700,7 @@ export function ComposeScreen({
                 saveMedia("audio", [{ blob, filename: `note.${ext}` }]);
               }}
               saving={saving}
+              onDirty={setMediaDirty}
             />
           )}
           {tab === "photo" && (
@@ -611,6 +712,7 @@ export function ComposeScreen({
                 )
               }
               saving={saving}
+              onDirty={setMediaDirty}
             />
           )}
           {tab === "video" && (
@@ -619,6 +721,7 @@ export function ComposeScreen({
                 saveMedia("video", [{ blob: file, filename: file.name }], poster ?? undefined)
               }
               saving={saving}
+              onDirty={setMediaDirty}
             />
           )}
         </div>

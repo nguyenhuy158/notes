@@ -30,7 +30,7 @@ export function Switch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        "flex w-full items-center gap-3 rounded-ui py-2 text-left outline-none",
+        "flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-ui py-2 text-left outline-none",
         "focus-visible:ring-2 focus-visible:ring-ring",
         disabled && "cursor-not-allowed opacity-60",
         className,

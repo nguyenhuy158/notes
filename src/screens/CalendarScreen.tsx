@@ -4,7 +4,8 @@ import type { Note, NoteType } from "../api";
 import { useI18n } from "../i18n";
 import { computeLongestStreak, monthString, parseDate, toDateString, todayString } from "../date";
 import { cn } from "../ui/cn";
-import { Camera, CalendarDays, ChevronLeft, ChevronRight, Grid3x3, Mic, PenLine, Video, X } from "lucide-react";
+import { Camera, CalendarDays, ChevronLeft, ChevronRight, Grid3x3, Mic, PenLine, Video } from "lucide-react";
+import { Modal } from "../ui/Modal";
 import { MoodEmoji } from "../moodEmojis";
 import { MOODS } from "../api";
 
@@ -72,20 +73,8 @@ function YearHeatmap({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-bg" onClick={onClose}>
-      <div className="mx-auto max-w-md px-4 py-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <span className="text-base font-semibold text-fg">{t.year_title(year)}</span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t.calendar_done}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
+    <Modal title={t.year_title(year)} onClose={onClose} closeLabel={t.calendar_close} variant="full">
+      <>
         <div className="mt-2 grid grid-cols-2 gap-2 rounded-ui border border-border bg-surface p-3 text-sm">
           <div>
             <p className="text-xs text-fg-muted">{t.year_stats_notes(totalNotes)}</p>
@@ -128,8 +117,9 @@ function YearHeatmap({
                         key={date}
                         type="button"
                         onClick={() => onOpenDay(date)}
+                        aria-label={t.heatmap_day_label(date, counts[date] ?? 0)}
                         className={cn(
-                          "aspect-square rounded-[2px] transition hover:ring-1 hover:ring-primary",
+                          "aspect-square cursor-pointer rounded-[2px] transition hover:ring-1 hover:ring-primary",
                           levelClass(counts[date] ?? 0),
                           date === today && "ring-1 ring-primary",
                         )}
@@ -141,12 +131,23 @@ function YearHeatmap({
             );
           })}
         </div>
-      </div>
-    </div>
+
+        {/* Chu giai: o dam/nhat chi khac nhau ve mau, khong co legend thi khong doc duoc. */}
+        <div className="mt-3 flex items-center justify-end gap-1.5 text-xs text-fg-muted">
+          <span>{t.heatmap_legend_less}</span>
+          {[0, 1, 2, 3].map((level) => (
+            <span
+              key={level}
+              aria-hidden="true"
+              className={cn("h-3 w-3 rounded-[2px]", levelClass(level))}
+            />
+          ))}
+          <span>{t.heatmap_legend_more}</span>
+        </div>
+      </>
+    </Modal>
   );
 }
-
-const WEEKDAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 const TYPE_ICON: Record<NoteType, typeof PenLine> = {
   text: PenLine,
@@ -154,6 +155,20 @@ const TYPE_ICON: Record<NoteType, typeof PenLine> = {
   photo: Camera,
   video: Video,
 };
+
+/** Icon + chu cho note khong phai text (truoc day dung emoji 🎙️/🎬/📷). */
+function TypeBadge({ type }: { type: NoteType }) {
+  const { t } = useI18n();
+  const Icon = TYPE_ICON[type];
+  const label =
+    type === "audio" ? t.compose_tab_audio : type === "video" ? t.compose_tab_video : t.compose_tab_photo;
+  return (
+    <span className="flex items-center gap-1.5 text-fg-muted">
+      <Icon size={16} aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
 
 function firstWeekdayOffset(year: number, month: number): number {
   return (new Date(year, month, 1).getDay() + 6) % 7;
@@ -191,17 +206,15 @@ function OnThisDay({ onOpenDay }: { onOpenDay: (date: string) => void }) {
             key={note.id}
             type="button"
             onClick={() => onOpenDay(note.date)}
-            className="w-40 shrink-0 rounded-2xl border border-border bg-surface p-3 text-left outline-none transition hover:bg-surface-muted focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-40 shrink-0 cursor-pointer rounded-2xl border border-border bg-surface p-3 text-left outline-none transition hover:bg-surface-muted active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="block text-xs font-medium text-primary">{t.on_this_day_title(yearsAgo)}</span>
             <span className="mt-1 block line-clamp-3 text-sm text-fg">
-              {note.type === "text"
-                ? note.text
-                : note.type === "audio"
-                  ? "🎙️"
-                  : note.type === "video"
-                    ? "🎬"
-                    : "📷"}
+              {note.type === "text" ? (
+                note.text
+              ) : (
+                <TypeBadge type={note.type} />
+              )}
             </span>
           </button>
         );
@@ -225,43 +238,25 @@ function MonthYearPicker({
   const [pickYear, setPickYear] = useState(year);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-t-2xl bg-surface p-4 sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-fg">{t.calendar_pick_month_year}</span>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t.calendar_done}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
+    <Modal title={t.calendar_pick_month_year} onClose={onClose} closeLabel={t.calendar_close}>
+      <>
         <div className="mt-3 flex items-center justify-center gap-4">
           <button
             type="button"
             onClick={() => setPickYear((y) => y - 1)}
-            aria-label={t.calendar_prev_month}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            aria-label={String(pickYear - 1)}
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={18} aria-hidden="true" />
           </button>
           <span className="text-base font-semibold tabular text-fg">{pickYear}</span>
           <button
             type="button"
             onClick={() => setPickYear((y) => y + 1)}
-            aria-label={t.calendar_next_month}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            aria-label={String(pickYear + 1)}
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={18} aria-hidden="true" />
           </button>
         </div>
 
@@ -273,8 +268,9 @@ function MonthYearPicker({
                 key={m}
                 type="button"
                 onClick={() => onPick(pickYear, m)}
+                aria-pressed={isSelected}
                 className={cn(
-                  "rounded-ui py-2 text-sm font-medium tabular transition",
+                  "min-h-11 cursor-pointer rounded-ui text-sm font-medium tabular transition active:scale-[0.98]",
                   isSelected ? "bg-primary text-primary-fg" : "hover:bg-surface-muted text-fg",
                 )}
               >
@@ -283,8 +279,8 @@ function MonthYearPicker({
             );
           })}
         </div>
-      </div>
-    </div>
+      </>
+    </Modal>
   );
 }
 
@@ -369,16 +365,16 @@ export function CalendarScreen({
           type="button"
           onClick={() => shiftMonth(-1)}
           aria-label={t.calendar_prev_month}
-          className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+          className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted active:scale-95"
         >
-          ‹
+          <ChevronLeft size={20} aria-hidden="true" />
         </button>
         <span className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
             aria-label={t.calendar_pick_month_year}
-            className="rounded-ui px-1.5 py-0.5 text-base font-semibold text-fg transition hover:bg-surface-muted"
+            className="min-h-10 cursor-pointer rounded-ui px-2 text-lg font-semibold tracking-tight text-fg transition hover:bg-surface-muted"
           >
             {t.calendar_month(view.month + 1, view.year)}
           </button>
@@ -387,7 +383,7 @@ export function CalendarScreen({
               type="button"
               onClick={goToday}
               aria-label={t.calendar_go_today}
-              className="grid h-9 w-9 place-items-center rounded-ui text-primary transition hover:bg-surface-muted"
+              className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-primary transition hover:bg-surface-muted active:scale-95"
             >
               <CalendarDays size={16} />
             </button>
@@ -398,23 +394,23 @@ export function CalendarScreen({
             type="button"
             onClick={() => setYearViewOpen(true)}
             aria-label={t.calendar_year_view}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted active:scale-95"
           >
-            <Grid3x3 size={16} />
+            <Grid3x3 size={18} aria-hidden="true" />
           </button>
           <button
             type="button"
             onClick={() => shiftMonth(1)}
             aria-label={t.calendar_next_month}
-            className="grid h-10 w-10 place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
+            className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted active:scale-95"
           >
-            ›
+            <ChevronRight size={20} aria-hidden="true" />
           </button>
         </div>
       </div>
 
       <div className="mt-3 grid grid-cols-7 gap-1">
-        {WEEKDAYS.map((weekday) => (
+        {t.calendar_weekdays().map((weekday) => (
           <div key={weekday} className="py-1 text-center text-xs font-medium text-fg-muted">
             {weekday}
           </div>
@@ -434,9 +430,10 @@ export function CalendarScreen({
               key={date}
               type="button"
               onClick={() => onOpenDay(date)}
+              aria-label={t.calendar_day_label(date, (days[date] ?? []).length)}
               className={cn(
-                "relative flex aspect-square flex-col items-center justify-center gap-1 rounded-2xl text-base tabular outline-none transition",
-                "focus-visible:ring-2 focus-visible:ring-ring active:bg-surface-muted",
+                "relative flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl text-base tabular outline-none transition",
+                "focus-visible:ring-2 focus-visible:ring-ring active:scale-95 active:bg-surface-muted",
                 isToday ? "bg-primary/10 font-semibold text-primary" : "text-fg",
               )}
             >
@@ -483,7 +480,7 @@ export function CalendarScreen({
                 key={tag}
                 type="button"
                 onClick={() => onOpenTag(tag)}
-                className="rounded-full bg-surface-muted px-2 py-1 text-xs font-medium text-fg-muted transition hover:bg-primary/15 hover:text-primary"
+                className="min-h-8 cursor-pointer rounded-full bg-surface-muted px-2.5 text-xs font-medium text-fg-muted transition hover:bg-primary/15 hover:text-primary active:scale-[0.98]"
               >
                 #{tag} · {count}
               </button>

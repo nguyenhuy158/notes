@@ -5,6 +5,7 @@ import { formatVi, formatTime } from "../date";
 import { HeaderBar } from "../ui/HeaderBar";
 import { EmptyState, LoadingState } from "../ui/states";
 import { useToast } from "../ui/Toast";
+import { useDialog } from "../ui/ConfirmDialog";
 import { StickerGhost } from "../stickers";
 import { ArrowLeft, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "../ui/cn";
@@ -13,6 +14,7 @@ import { AudioPlayer } from "../ui/AudioPlayer";
 export function TrashScreen({ onBack }: { onBack: () => void }) {
   const { t } = useI18n();
   const toast = useToast();
+  const dialog = useDialog();
   const [notes, setNotes] = useState<Note[] | null>(null);
 
   useEffect(() => {
@@ -29,7 +31,12 @@ export function TrashScreen({ onBack }: { onBack: () => void }) {
   }
 
   async function purge(id: string) {
-    if (!window.confirm(t.trash_purge_confirm)) return;
+    const ok = await dialog.confirm({
+      title: t.trash_purge_confirm,
+      confirmLabel: t.trash_purge,
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await api.purgeNote(id);
       setNotes((prev) => (prev ?? []).filter((n) => n.id !== id));
@@ -98,7 +105,8 @@ export function TrashScreen({ onBack }: { onBack: () => void }) {
                     <img
                       key={url}
                       src={url}
-                      alt=""
+                      alt={note.text || t.photo_alt(note.date)}
+                      loading="lazy"
                       className={cn(
                         "rounded-ui object-cover",
                         note.mediaUrls.length > 1 ? "h-40 w-40 shrink-0" : "max-h-60 w-full",

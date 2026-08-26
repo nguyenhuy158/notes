@@ -57,11 +57,19 @@ export function BottomNav<TId extends string = string>({
               aria-selected={isActive}
               onClick={() => onChange(item.id)}
               className={cn(
-                "relative flex min-h-14 flex-col items-center justify-center gap-0.5 outline-none transition",
+                "relative flex min-h-14 cursor-pointer flex-col items-center justify-center gap-0.5 outline-none transition",
                 "active:bg-surface-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                 isActive ? "text-primary" : "text-fg-muted",
               )}
             >
+              {/* Gach chi muc: khong de trang thai active chi phu thuoc mau (color-not-only). */}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute top-0 h-0.5 w-8 rounded-full transition",
+                  isActive ? "bg-primary" : "bg-transparent",
+                )}
+              />
               <span className="relative">
                 <Icon size={20} />
                 {Boolean(item.badge) && (
@@ -101,7 +109,7 @@ export function Fab({ onClick, label, icon, aboveNav = true, className }: FabPro
           : "calc(1rem + env(safe-area-inset-bottom))",
       }}
       className={cn(
-        "fixed right-4 z-40 inline-flex h-14 w-14 items-center justify-center rounded-full",
+        "fixed right-4 z-40 inline-flex h-14 w-14 cursor-pointer items-center justify-center rounded-full",
         "bg-primary text-primary-fg shadow-lg transition active:scale-95 hover:bg-primary-hover",
         "outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
