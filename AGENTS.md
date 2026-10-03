@@ -19,6 +19,7 @@ worker/src/              # Hono Worker: index.ts (routes), SSO session/verifier
 shared/                  # Shared by src/ + worker: notes.ts (note types, moods, limits), build-info
 schema.sql               # D1 schema (applied by db:migrate:*)
 public/                  # PWA icons/logos
+e2e/                     # playwright-core smoke: run.mjs, readonly-smoke, ui-smoke, sso-mock
 wrangler.jsonc           # Worker, D1, R2, AI bindings
 ```
 
