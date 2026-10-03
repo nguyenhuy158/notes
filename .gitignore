@@ -8,5 +8,6 @@ dist
 coverage
 *.tsbuildinfo
 .pnpm-store/
-{{*}}/
 shared/build-info.generated.ts
+{{pkgetc}}/
+{{HOMEBREW_PREFIX}}/
