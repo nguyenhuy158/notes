@@ -17,7 +17,9 @@
     "format": "biome format --write .",
     "db:migrate:local": "wrangler d1 execute DB --local --file=./schema.sql",
     "db:migrate:remote": "wrangler d1 execute DB --remote --file=./schema.sql",
-    "deploy": "pnpm build && wrangler deploy"
+    "deploy": "pnpm build && wrangler deploy",
+    "e2e": "node e2e/run.mjs",
+    "e2e:prod": "E2E_BASE_URL=https://notes.huyab.click node e2e/readonly-smoke.mjs"
   },
   "dependencies": {
     "@dicebear/collection": "^9.4.2",
@@ -36,6 +38,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "playwright-core": "^1.63.0",
     "typescript": "^5.7.0",
     "vite": "^7.0.0",
     "vite-plugin-pwa": "^1.3.0",

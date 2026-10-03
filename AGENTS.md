@@ -34,6 +34,9 @@ wrangler.jsonc           # Worker, D1, R2, AI bindings
 - `pnpm preview`: preview the production build on `127.0.0.1`.
 - `pnpm db:migrate:local` / `pnpm db:migrate:remote`: apply `schema.sql` to D1.
 - `pnpm deploy`: build then `wrangler deploy`.
+- `pnpm e2e`: build, fresh local D1/R2 (`.wrangler/e2e-state`), mock SSO issuer,
+  `wrangler dev --local`, then `e2e/readonly-smoke.mjs` + `e2e/ui-smoke.mjs`.
+- `pnpm e2e:prod`: read-only smoke (GET only, logged out) against `notes.huyab.click`.
 
 ## Coding Style & Naming Conventions
 
@@ -45,9 +48,13 @@ clear responsibility.
 
 ## Testing Guidelines
 
-There is no automated test suite yet; `pnpm check` and `pnpm build` are the
-gate (also run in CI). Verify UI changes manually in the browser. If tests are
-added, use Vitest with colocated `*.test.ts` files and add a `test` script.
+No unit test suite yet; `pnpm check`, `pnpm build` and `pnpm e2e` are the gate
+(all run in CI). E2E uses `playwright-core` with a system/CI Chromium
+(`e2e/chromium.mjs`). `e2e/sso-mock.mjs` signs a real `huyab_sso` JWT and
+serves its JWKS, so the worker's SSO verifier runs unmodified; AI bindings are
+off in `--local`, so AI features take their failure path. `ui-smoke.mjs`
+writes data and refuses non-localhost URLs; `readonly-smoke.mjs` must stay
+GET-only because it also runs against production.
 
 ## Commit & Pull Request Guidelines
 
@@ -124,7 +131,10 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   Trang xem chia sẻ ở client là `/s/:token` (khác `/share/` phía server), đọc
   thẳng `window.location.pathname` trong `App.tsx` — app không có URL router
   thật, đây là route đặc biệt duy nhất được xử lý trước mọi hook khác (an
-  toàn vì pathname không đổi giữa các lần render cùng 1 mount).
+  toàn vì pathname không đổi giữa các lần render cùng 1 mount). Worker có
+  route `GET /s/:token` trả `index.html` qua binding `ASSETS`: với
+  `compatibility_date` hiện tại, điều hướng không khớp asset đi vào Worker
+  chứ không tự fallback SPA — thiếu route này người nhận link gặp 404.
 - **Sửa caption cho audio/photo**: `PUT /api/notes/:id` giờ áp dụng mọi loại
   note, không chỉ `text` — audio/photo cho phép caption rỗng (tuỳ chọn), chỉ
   note gốc `type = 'text'` mới bắt buộc không rỗng.
