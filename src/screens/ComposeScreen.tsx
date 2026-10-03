@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { api, MOODS, type Mood, type NoteType } from "../api";
+import { api } from "../api";
+import { MAX_VIDEO_BYTES, MOODS, type Mood, type NoteType } from "../../shared/notes";
 import { MoodEmoji } from "../moodEmojis";
 import { useI18n } from "../i18n";
 import { formatTime, formatVi } from "../date";
@@ -400,8 +401,6 @@ function PhotoComposer({
     </div>
   );
 }
-
-const MAX_VIDEO_BYTES = 30 * 1024 * 1024; // khớp MAX_VIDEO_BYTES ở worker
 
 /** Trích 1 khung hình JPEG từ video (ở giây 0.1, tránh khung đen đầu tiên
  * nhiều video hay có) — chỉ dùng để AI tạo caption, không lưu vào R2. Không

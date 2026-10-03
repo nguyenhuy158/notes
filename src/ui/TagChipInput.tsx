@@ -3,8 +3,7 @@ import { api } from "../api";
 import { X } from "lucide-react";
 import { useI18n } from "../i18n";
 import { cn } from "./cn";
-
-const MAX_TAGS = 5;
+import { MAX_TAGS } from "../../shared/notes";
 
 /** Editor nhãn dạng chip (khác ô text thô cũ) — gõ rồi Enter/dấu phẩy để
  * thêm, bấm x để bỏ. Gợi ý nhãn user đã dùng trước đó (fetch 1 lần, lọc ở

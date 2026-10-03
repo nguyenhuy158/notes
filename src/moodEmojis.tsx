@@ -6,7 +6,7 @@
  * sẵn).
  */
 import type { ComponentType } from "react";
-import type { Mood } from "./api";
+import type { Mood } from "../shared/notes";
 
 type FaceProps = { size?: number; className?: string };
 

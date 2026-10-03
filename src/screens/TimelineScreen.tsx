@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { vi, enUS } from "date-fns/locale";
 import { Camera, Flame, Mic, PenLine, Search, Video, X } from "lucide-react";
-import { api, MOODS } from "../api";
-import type { Note, NoteType } from "../api";
+import { api } from "../api";
+import type { Note } from "../api";
+import { MOODS, type NoteType } from "../../shared/notes";
+import { NOTE_TYPE_ICON } from "../noteTypeIcon";
 import { useI18n } from "../i18n";
 import { MoodEmoji } from "../moodEmojis";
 import {
@@ -18,13 +20,6 @@ import { cn } from "../ui/cn";
 import { EmptyState, Skeleton, SkeletonListRow } from "../ui/states";
 
 const MONTHS_PAGE = 6;
-
-const TYPE_ICON: Record<NoteType, typeof PenLine> = {
-  text: PenLine,
-  audio: Mic,
-  photo: Camera,
-  video: Video,
-};
 
 function pastMonths(count: number): string[] {
   const now = new Date();
@@ -366,7 +361,7 @@ export function TimelineScreen({
                           ) : (
                             <span className="flex w-[22px] shrink-0 items-center justify-center gap-0.5">
                               {uniqueTypes.map((type) => {
-                                const Icon = TYPE_ICON[type];
+                                const Icon = NOTE_TYPE_ICON[type];
                                 return <Icon key={type} size={13} className="text-fg-muted" />;
                               })}
                             </span>

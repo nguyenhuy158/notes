@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
-import type { Note, NoteType } from "../api";
+import type { Note } from "../api";
+import { MOODS, type NoteType } from "../../shared/notes";
+import { NOTE_TYPE_ICON } from "../noteTypeIcon";
 import { useI18n } from "../i18n";
 import { computeLongestStreak, monthString, parseDate, toDateString, todayString } from "../date";
 import { cn } from "../ui/cn";
-import { Camera, CalendarDays, ChevronLeft, ChevronRight, Grid3x3, Mic, PenLine, Video } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Grid3x3 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { MoodEmoji } from "../moodEmojis";
-import { MOODS } from "../api";
 
 const SAD_MOODS = new Set(["😔", "😡", "😰"]);
 
@@ -149,17 +150,10 @@ function YearHeatmap({
   );
 }
 
-const TYPE_ICON: Record<NoteType, typeof PenLine> = {
-  text: PenLine,
-  audio: Mic,
-  photo: Camera,
-  video: Video,
-};
-
 /** Icon + chu cho note khong phai text (truoc day dung emoji 🎙️/🎬/📷). */
 function TypeBadge({ type }: { type: NoteType }) {
   const { t } = useI18n();
-  const Icon = TYPE_ICON[type];
+  const Icon = NOTE_TYPE_ICON[type];
   const label =
     type === "audio" ? t.compose_tab_audio : type === "video" ? t.compose_tab_video : t.compose_tab_photo;
   return (
@@ -443,7 +437,7 @@ export function CalendarScreen({
               ) : (
                 <span className="flex h-3 items-center gap-0.5">
                   {types.map((type) => {
-                    const Icon = TYPE_ICON[type];
+                    const Icon = NOTE_TYPE_ICON[type];
                     return <Icon key={type} size={11} className="text-fg-muted" />;
                   })}
                 </span>

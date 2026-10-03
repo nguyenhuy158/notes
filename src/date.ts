@@ -32,7 +32,7 @@ export function formatTime(iso: string): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function shiftDateString(value: string, deltaDays: number): string {
+export function shiftDateString(value: string, deltaDays: number): string {
   const { year, month, day } = parseDate(value);
   const d = new Date(year, month, day + deltaDays);
   return toDateString(d.getFullYear(), d.getMonth(), d.getDate());

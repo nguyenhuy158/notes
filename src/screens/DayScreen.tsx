@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { api, MOODS, type Mood, type Note } from "../api";
+import { api, type Note } from "../api";
+import { MOODS, type Mood } from "../../shared/notes";
 import { useI18n } from "../i18n";
 import { MoodEmoji } from "../moodEmojis";
-import { formatTime, formatVi, parseDate, todayString, toDateString } from "../date";
+import { formatTime, formatVi, shiftDateString, todayString } from "../date";
 import { Button } from "../ui/Button";
 import { HeaderBar } from "../ui/HeaderBar";
 import { Textarea } from "../ui/Input";
@@ -674,12 +675,6 @@ function NoteCard({
   );
 }
 
-function shiftDate(date: string, deltaDays: number): string {
-  const { year, month, day } = parseDate(date);
-  const d = new Date(year, month, day + deltaDays);
-  return toDateString(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
 export function DayScreen({
   date,
   onBack,
@@ -746,7 +741,7 @@ export function DayScreen({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => onNavigate(shiftDate(date, -1))}
+              onClick={() => onNavigate(shiftDateString(date, -1))}
               aria-label={t.day_prev}
               className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted"
             >
@@ -754,7 +749,7 @@ export function DayScreen({
             </button>
             <button
               type="button"
-              onClick={() => onNavigate(shiftDate(date, 1))}
+              onClick={() => onNavigate(shiftDateString(date, 1))}
               disabled={isToday}
               aria-label={t.day_next}
               className="grid h-10 w-10 cursor-pointer place-items-center rounded-ui text-fg-muted transition hover:bg-surface-muted disabled:cursor-not-allowed disabled:opacity-30"

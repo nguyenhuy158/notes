@@ -1,4 +1,4 @@
-import type { NoteType } from "./api";
+import { NOTE_TYPES, type NoteType } from "../shared/notes";
 
 /**
  * Loại note mở sẵn khi vào Compose. Chỉ lưu client (localStorage) như
@@ -9,11 +9,10 @@ import type { NoteType } from "./api";
  */
 const KEY = "compose-default-type";
 const DEFAULT: NoteType = "audio";
-const VALID: NoteType[] = ["text", "audio", "photo", "video"];
 
 export function getDefaultNoteType(): NoteType {
   const raw = localStorage.getItem(KEY) as NoteType | null;
-  return raw && VALID.includes(raw) ? raw : DEFAULT;
+  return raw && NOTE_TYPES.includes(raw) ? raw : DEFAULT;
 }
 
 export function setDefaultNoteType(type: NoteType) {

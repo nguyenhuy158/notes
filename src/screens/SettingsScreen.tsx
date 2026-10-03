@@ -32,7 +32,7 @@ import {
 import { clearPin, getIdleLockMinutes, isPinSet, setIdleLockMinutes, setPin } from "../pinLock";
 import { ACCENT_PRESETS, getAccentHue, setAccentHue } from "../accentColor";
 import { getDefaultNoteType, setDefaultNoteType } from "../composePref";
-import type { NoteType } from "../api";
+import type { NoteType } from "../../shared/notes";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { Skeleton } from "../ui/states";

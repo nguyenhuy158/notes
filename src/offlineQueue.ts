@@ -7,7 +7,8 @@
  * Lưu trong localStorage (đủ nhẹ cho text), tự đồng bộ khi có mạng lại qua
  * sự kiện `online` hoặc lúc app mở lại.
  */
-import { api, type Mood } from "./api";
+import { api } from "./api";
+import type { Mood } from "../shared/notes";
 
 const KEY = "offline-queue";
 

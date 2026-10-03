@@ -6,16 +6,7 @@ import { HeaderBar } from "../ui/HeaderBar";
 import { EmptyState, LoadingState } from "../ui/states";
 import { StickerGhost } from "../stickers";
 import { ArrowLeft, FileJson, FileText } from "lucide-react";
-
-function downloadFile(content: string, filename: string, mime: string) {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { downloadBlob } from "../lib/download";
 
 /** Danh sách note khớp đúng 1 nhãn — mở từ chip nhãn trên note (DayScreen)
  * hoặc từ màn "Quản lý nhãn" (Settings). Chỉ xem/nhảy tới ngày, không sửa
@@ -38,11 +29,8 @@ export function TagNotesScreen({
 
   function exportJson() {
     if (!notes) return;
-    downloadFile(
-      JSON.stringify({ tag, exportedAt: new Date().toISOString(), notes }, null, 2),
-      `tag-${tag}.json`,
-      "application/json"
-    );
+    const json = JSON.stringify({ tag, exportedAt: new Date().toISOString(), notes }, null, 2);
+    downloadBlob(new Blob([json], { type: "application/json" }), `tag-${tag}.json`);
   }
 
   function exportMarkdown() {
@@ -55,7 +43,7 @@ export function TagNotesScreen({
       else if (note.type === "audio") md += `[audio](${origin}${note.mediaUrl})\n\n`;
       else for (const url of note.mediaUrls) md += `![photo](${origin}${url})\n\n`;
     }
-    downloadFile(md, `tag-${tag}.md`, "text/markdown");
+    downloadBlob(new Blob([md], { type: "text/markdown" }), `tag-${tag}.md`);
   }
 
   return (

@@ -1,7 +1,5 @@
-export type NoteType = "text" | "audio" | "photo" | "video";
-
-export const MOODS = ["😄", "🙂", "😐", "😔", "😡", "😴", "🥳", "😰"] as const;
-export type Mood = (typeof MOODS)[number];
+import type { Mood, NoteType } from "../shared/notes";
+import { downloadBlob } from "./lib/download";
 
 export type Note = {
   id: string;
@@ -21,14 +19,27 @@ export type Note = {
   deletedAt: string | null;
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/** fetch + xử lý chung: 401 -> về /login, status lỗi -> throw. */
+async function fetchOk(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(path, init);
   if (res.status === 401) {
     window.location.href = "/login";
     throw new Error("unauthorized");
   }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json() as Promise<T>;
+  return res;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await fetchOk(path, init)).json() as Promise<T>;
+}
+
+function putJson<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export const api = {
@@ -81,19 +92,9 @@ export const api = {
     return request<{ note: Note }>("/api/notes", { method: "POST", body: form });
   },
 
-  updateText: (id: string, text: string) =>
-    request<{ note: Note }>(`/api/notes/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    }),
+  updateText: (id: string, text: string) => putJson<{ note: Note }>(`/api/notes/${id}`, { text }),
 
-  updateMood: (id: string, mood: Mood | null) =>
-    request<{ note: Note }>(`/api/notes/${id}/mood`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mood }),
-    }),
+  updateMood: (id: string, mood: Mood | null) => putJson<{ note: Note }>(`/api/notes/${id}/mood`, { mood }),
 
   deleteNote: (id: string) => request<{ ok: true }>(`/api/notes/${id}`, { method: "DELETE" }),
 
@@ -115,32 +116,14 @@ export const api = {
   notesByTag: (tag: string) => request<{ notes: Note[] }>(`/api/notes/by-tag?tag=${encodeURIComponent(tag)}`),
 
   renameTag: (from: string, to: string) =>
-    request<{ ok: true; updated: number }>("/api/tags/rename", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to }),
-    }),
+    putJson<{ ok: true; updated: number }>("/api/tags/rename", { from, to }),
 
   updateLocation: (id: string, location: string) =>
-    request<{ note: Note }>(`/api/notes/${id}/location`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ location }),
-    }),
+    putJson<{ note: Note }>(`/api/notes/${id}/location`, { location }),
 
-  moveNoteDate: (id: string, date: string) =>
-    request<{ note: Note }>(`/api/notes/${id}/date`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date }),
-    }),
+  moveNoteDate: (id: string, date: string) => putJson<{ note: Note }>(`/api/notes/${id}/date`, { date }),
 
-  reorderNotes: (ids: string[]) =>
-    request<{ ok: true }>("/api/notes/reorder", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids }),
-    }),
+  reorderNotes: (ids: string[]) => putJson<{ ok: true }>("/api/notes/reorder", { ids }),
 
   replaceMedia: (id: string, file: Blob, filename: string) => {
     const form = new FormData();
@@ -148,19 +131,9 @@ export const api = {
     return request<{ note: Note }>(`/api/notes/${id}/media`, { method: "PUT", body: form });
   },
 
-  togglePin: (id: string, pinned: boolean) =>
-    request<{ note: Note }>(`/api/notes/${id}/pin`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pinned }),
-    }),
+  togglePin: (id: string, pinned: boolean) => putJson<{ note: Note }>(`/api/notes/${id}/pin`, { pinned }),
 
-  updateTags: (id: string, tags: string[]) =>
-    request<{ note: Note }>(`/api/notes/${id}/tags`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tags }),
-    }),
+  updateTags: (id: string, tags: string[]) => putJson<{ note: Note }>(`/api/notes/${id}/tags`, { tags }),
 
   enableShare: (id: string) => request<{ shareToken: string }>(`/api/notes/${id}/share`, { method: "POST" }),
 
@@ -189,30 +162,11 @@ export const api = {
   },
 
   // Dùng nội bộ cho Album ảnh (không trigger tải file như exportNotes).
-  exportJson: async (): Promise<Note[]> => {
-    const res = await fetch("/api/export?format=json");
-    if (res.status === 401) {
-      window.location.href = "/login";
-      throw new Error("unauthorized");
-    }
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    const body = (await res.json()) as { notes: Note[] };
-    return body.notes;
-  },
+  exportJson: async (): Promise<Note[]> =>
+    (await request<{ notes: Note[] }>("/api/export?format=json")).notes,
 
   exportNotes: async (format: "json" | "markdown") => {
-    const res = await fetch(`/api/export?format=${format}`);
-    if (res.status === 401) {
-      window.location.href = "/login";
-      throw new Error("unauthorized");
-    }
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = format === "json" ? "notes-export.json" : "notes-export.md";
-    a.click();
-    URL.revokeObjectURL(url);
+    const res = await fetchOk(`/api/export?format=${format}`);
+    downloadBlob(await res.blob(), format === "json" ? "notes-export.json" : "notes-export.md");
   },
 };
