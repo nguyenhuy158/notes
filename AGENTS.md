@@ -19,7 +19,7 @@ worker/src/              # Hono Worker: index.ts (routes), session.ts (SSO cooki
 shared/                  # Shared by src/ + worker: notes.ts (note types, moods, limits), build-info
 schema.sql               # D1 schema (applied by db:migrate:*)
 public/                  # PWA icons/logos
-e2e/                     # playwright-core smoke: run.mjs, readonly-smoke, ui-smoke, sso-mock
+e2e/                     # playwright-core smoke on @huyab/e2e: run.mjs, readonly-smoke, ui-smoke
 wrangler.jsonc           # Worker, D1, R2, AI bindings
 ```
 
@@ -51,8 +51,8 @@ clear responsibility.
 
 No unit test suite yet; `pnpm check`, `pnpm build` and `pnpm e2e` are the gate
 (all run in CI). E2E uses `playwright-core` with a system/CI Chromium
-(`e2e/chromium.mjs`). `e2e/sso-mock.mjs` signs a real `huyab_sso` JWT and
-serves its JWKS, so the worker's SSO verifier runs unmodified; AI bindings are
+(`findChromium` from `@huyab/e2e`). `startSsoMock` (`@huyab/e2e`) signs a real
+`huyab_sso` JWT and serves its JWKS, so the worker's SSO verifier runs unmodified; AI bindings are
 off in `--local`, so AI features take their failure path. `ui-smoke.mjs`
 writes data and refuses non-localhost URLs; `readonly-smoke.mjs` must stay
 GET-only because it also runs against production.

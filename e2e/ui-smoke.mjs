@@ -5,22 +5,20 @@
 //
 // Biến môi trường:
 // - E2E_BASE_URL: server local (run.mjs đặt sẵn)
-// - E2E_SSO_TOKEN: cookie huyab_sso do e2e/sso-mock.mjs ký
-// - PLAYWRIGHT_CHROMIUM_PATH: xem e2e/chromium.mjs
+// - E2E_SSO_TOKEN: cookie huyab_sso do startSsoMock() của @huyab/e2e ký
+// - PLAYWRIGHT_CHROMIUM_PATH: xem findChromium() của @huyab/e2e
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { assertLocalOnly, findChromium } from "@huyab/e2e";
 import { chromium } from "playwright-core";
-import { findChromium } from "./chromium.mjs";
 
 const BASE = (process.env.E2E_BASE_URL || "").replace(/\/$/, "");
 const TOKEN = process.env.E2E_SSO_TOKEN;
 const WAIT = { timeout: 15000 };
 const MOBILE = { viewport: { width: 390, height: 844 } };
 
-if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(BASE)) {
-  throw new Error(`ui-smoke chỉ chạy với server local, nhận "${BASE}" — dùng \`pnpm e2e\``);
-}
+assertLocalOnly(BASE);
 if (!TOKEN) throw new Error("thiếu E2E_SSO_TOKEN — dùng `pnpm e2e`");
 
 let passed = 0;
