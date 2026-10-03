@@ -8,6 +8,7 @@ type Bindings = {
   MEDIA: R2Bucket;
   SSO_ISSUER: string;
   AI: Ai;
+  ASSETS: Fetcher;
 };
 
 type Variables = {
@@ -907,6 +908,12 @@ app.get("/share/:token/media", async (c) => {
   const row = await findSharedNote(c.env.DB, c.req.param("token"));
   return (await serveNoteMedia(c.env.MEDIA, row, slot, "public")) ?? c.json({ error: "not found" }, 404);
 });
+
+// Trang xem chia sẻ `/s/:token` là route của SPA (ShareScreen), nhưng
+// compatibility_date < 2025-04-01 nên điều hướng không khớp asset rơi vào
+// Worker thay vì tự trả index.html — thiếu route này người nhận link chỉ thấy
+// "404 Not Found" (người chia sẻ không thấy lỗi vì service worker trả shell cache).
+app.get("/s/:token", (c) => c.env.ASSETS.fetch(new URL("/", c.req.url)));
 
 app.get("/login", (c) => {
   const url = new URL(c.req.url);
