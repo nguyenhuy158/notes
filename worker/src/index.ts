@@ -1,5 +1,6 @@
+import { ssoUrl } from "@huyab/sso";
 import { Hono } from "hono";
-import { getClaimsFromRequest, resolveUserId, ssoUrl } from "./session.js";
+import { getSsoClaims, resolveUserId } from "./session";
 import { BUILD_INFO } from "../../shared/build-info";
 import { MAX_TAGS, MAX_VIDEO_BYTES, MOODS, NOTE_TYPES, type Mood, type NoteType } from "../../shared/notes";
 
@@ -178,7 +179,7 @@ function toNoteJson(row: NoteRow, mediaBase = `/api/media/${row.id}`) {
 app.get("/api/version", (c) => c.json(BUILD_INFO));
 
 app.use("/api/*", async (c, next) => {
-  const claims = await getClaimsFromRequest(c.req.raw, c.env.SSO_ISSUER);
+  const claims = await getSsoClaims(c);
   if (!claims) return c.json({ error: "unauthorized" }, 401);
   c.set("userId", await resolveUserId(c.env.DB, claims));
   await next();

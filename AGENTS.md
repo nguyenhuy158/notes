@@ -15,7 +15,7 @@ src/                     # Frontend (no URL router; screen state in App.tsx)
   styles/tokens.css      #   --ui-* design tokens (warm-brown brand values)
   styles.css             #   Global styles
   api.ts  i18n.tsx  ...  #   API client, VI/EN dictionary, local features
-worker/src/              # Hono Worker: index.ts (routes), SSO session/verifier
+worker/src/              # Hono Worker: index.ts (routes), session.ts (SSO cookie via @huyab/sso + users)
 shared/                  # Shared by src/ + worker: notes.ts (note types, moods, limits), build-info
 schema.sql               # D1 schema (applied by db:migrate:*)
 public/                  # PWA icons/logos

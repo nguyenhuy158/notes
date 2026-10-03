@@ -10,7 +10,7 @@ nhập qua [SSO chung](../sso) (`auth.huyab.click`), tự build/deploy khi push
 - Dùng chung D1 `db` với `sso` và các app khác — bảng có tiền tố `notes_`
   (`notes_users`, `notes_entries`, unique theo `user_id + date`).
 - `/api/*` yêu cầu cookie `huyab_sso` hợp lệ (kiểm bằng JWKS của
-  `auth.huyab.click`, xem `worker/src/sso-verifier.js` + `session.js`).
+  `auth.huyab.click` qua `@huyab/sso`, xem `worker/src/session.ts`).
 - Chưa đăng nhập gọi API -> 401, front-end tự chuyển `/login`.
 - Static assets phục vụ qua Workers Assets (`assets.directory: ./dist`),
   SPA fallback về `index.html`.
