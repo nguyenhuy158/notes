@@ -65,6 +65,19 @@ requests should include a short summary, check/build results, linked issue if
 available, and screenshots for visible UI changes. CI (`.github/workflows/ci.yml`)
 must be green before merging.
 
+## Ecosystem
+
+See the [huyab.click ecosystem map](https://github.com/nguyenhuy158/kit/blob/main/docs/ECOSYSTEM.md) for how all personal repos connect.
+
+- Kit packages: `@huyab/sso` (`verifySsoToken` on the `huyab_sso` cookie only,
+  no Bearer; `ssoUrl` for `/login` + `/logout`), `@huyab/e2e` (`startServer`,
+  `run`, `freePort`, `startSsoMock`, `findChromium`, `BASE`, `assertLocalOnly`
+  in `e2e/`), `@huyab/config` (Biome + tsconfig base), reusable CI
+  `nguyenhuy158/kit/.github/workflows/check.yml@v0.1.0`.
+- Talks to: sso (JWKS at `auth.huyab.click`, login/logout redirects), shared D1
+  `db` (`notes_` prefix), R2 `notes-media`, Workers AI. Called by notes-ios
+  (explicit `Cookie: huyab_sso=<token>`); mytools pings it for uptime.
+
 ## Agent-Specific Instructions
 
 Keep responses short and focused. If a requirement is unclear, ask before making
