@@ -22,7 +22,10 @@
       "binding": "DB",
       // Dùng chung D1 với sso và các app khác, nên bảng có tiền tố notes_.
       "database_name": "db",
-      "database_id": "6eb9cfce-f6f3-4476-8e46-7c8e954d93c1"
+      "database_id": "6eb9cfce-f6f3-4476-8e46-7c8e954d93c1",
+      "migrations_dir": "migrations",
+      // Own history table: in the shared d1_migrations another app's same-named file would count as applied.
+      "migrations_table": "notes_migrations"
     }
   ],
   "r2_buckets": [

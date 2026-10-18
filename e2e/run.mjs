@@ -1,7 +1,7 @@
-// Chạy cả bộ E2E một lệnh: build FE -> D1 local mới tinh (schema.sql) -> SSO
+// Chạy cả bộ E2E một lệnh: build FE -> D1 local mới tinh (migrations/) -> SSO
 // giả -> `wrangler dev --local` -> smoke chỉ-đọc + smoke đầy đủ -> tắt hết.
 // Không đụng dữ liệu thật: D1/R2 nằm trong .wrangler/e2e-state (xoá mỗi lần
-// chạy vì schema.sql chỉ áp được một lần), AI binding tắt (--local), mọi
+// chạy cho sạch), AI binding tắt (--local), mọi
 // tính năng AI tự bỏ qua như khi Workers AI lỗi.
 //
 // Biến môi trường:
@@ -28,14 +28,14 @@ await run(
     "exec",
     "wrangler",
     "d1",
-    "execute",
+    "migrations",
+    "apply",
     "DB",
     "--local",
     "--persist-to",
     PERSIST_DIR,
-    "--file=./schema.sql",
   ],
-  { label: "schema D1", env },
+  { label: "migrations D1", env },
 );
 
 const sso = await startSsoMock();
