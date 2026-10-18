@@ -17,7 +17,7 @@ src/                     # Frontend (no URL router; screen state in App.tsx)
   api.ts  i18n.tsx  ...  #   API client, VI/EN dictionary, local features
 worker/src/              # Hono Worker: index.ts (routes), session.ts (SSO cookie via @huyab/sso + users)
 shared/                  # Shared by src/ + worker: notes.ts (note types, moods, limits), build-info
-schema.sql               # D1 schema (applied by db:migrate:*)
+migrations/              # D1 migrations (applied by db:migrate:*), history in notes_migrations
 public/                  # PWA icons/logos
 e2e/                     # playwright-core smoke on @huyab/e2e: run.mjs, readonly-smoke, ui-smoke
 wrangler.jsonc           # Worker, D1, R2, AI bindings
@@ -33,7 +33,7 @@ wrangler.jsonc           # Worker, D1, R2, AI bindings
 - `pnpm format`: apply Biome formatting.
 - `pnpm build`: typecheck then Vite production build.
 - `pnpm preview`: preview the production build on `127.0.0.1`.
-- `pnpm db:migrate:local` / `pnpm db:migrate:remote`: apply `schema.sql` to D1.
+- `pnpm db:migrate:local` / `pnpm db:migrate:remote`: apply pending `migrations/` to D1.
 - `pnpm deploy`: build then `wrangler deploy`.
 - `pnpm e2e`: build, fresh local D1/R2 (`.wrangler/e2e-state`), mock SSO issuer,
   `wrangler dev --local`, then `e2e/readonly-smoke.mjs` + `e2e/ui-smoke.mjs`.
@@ -232,8 +232,8 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwin
   đằng nào cũng chỉ cần biết lúc quay lại có vượt ngưỡng không.
 - **Loại note "video"**: thêm vào `notes_entries.type` (`'text'|'audio'|
   'photo'|'video'`) — cột này có CHECK constraint, SQLite KHÔNG cho ALTER
-  sửa CHECK, phải rebuild cả bảng (xem khối cuối `schema.sql`, chỉ chạy 1
-  lần). Compose video CỐ TÌNH dùng file picker (`accept="video/*"
+  sửa CHECK, phải rebuild cả bảng bằng một migration mới (tạo bảng
+  mới, copy, đổi tên). Compose video CỐ TÌNH dùng file picker (`accept="video/*"
   capture="environment"`) giống Photo, KHÔNG dùng `MediaRecorder` trực tiếp
   như Audio — quay video qua `MediaRecorder` phức tạp/dễ vỡ hơn nhiều (phải
   tự vẽ preview camera sống, xin quyền camera+mic cùng lúc), trong khi

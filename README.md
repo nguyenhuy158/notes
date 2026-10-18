@@ -49,4 +49,4 @@ Test đăng nhập thật phải deploy lên `notes.huyab.click`.
 
 - `pnpm build` — tsc + vite build
 - `pnpm deploy` — build rồi `wrangler deploy`
-- `pnpm db:migrate:remote` / `db:migrate:local` — chạy `schema.sql` lên D1
+- `pnpm db:migrate:remote` / `db:migrate:local` — chạy các migration chưa áp trong `migrations/` lên D1
