@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Personal daily journal (`notes.huyab.click`): React 19 + Vite + Tailwind v4
+Personal daily journal (`notes.huyab.cfd`): React 19 + Vite + Tailwind v4
 frontend and a Hono Cloudflare Worker backend with D1 (shared `db`, tables
 prefixed `notes_`) and R2 (`notes-media`). Login via shared SSO.
 
@@ -37,7 +37,7 @@ wrangler.jsonc           # Worker, D1, R2, AI bindings
 - `pnpm deploy`: build then `wrangler deploy`.
 - `pnpm e2e`: build, fresh local D1/R2 (`.wrangler/e2e-state`), mock SSO issuer,
   `wrangler dev --local`, then `e2e/readonly-smoke.mjs` + `e2e/ui-smoke.mjs`.
-- `pnpm e2e:prod`: read-only smoke (GET only, logged out) against `notes.huyab.click`.
+- `pnpm e2e:prod`: read-only smoke (GET only, logged out) against `notes.huyab.cfd`.
 
 ## Coding Style & Naming Conventions
 
@@ -67,14 +67,14 @@ must be green before merging.
 
 ## Ecosystem
 
-See the [huyab.click ecosystem map](https://github.com/nguyenhuy158/kit/blob/main/docs/ECOSYSTEM.md) for how all personal repos connect.
+See the [huyab.cfd ecosystem map](https://github.com/nguyenhuy158/kit/blob/main/docs/ECOSYSTEM.md) for how all personal repos connect.
 
 - Kit packages: `@huyab/sso` (`verifySsoToken` on the `huyab_sso` cookie only,
   no Bearer; `ssoUrl` for `/login` + `/logout`), `@huyab/e2e` (`startServer`,
   `run`, `freePort`, `startSsoMock`, `findChromium`, `BASE`, `assertLocalOnly`
   in `e2e/`), `@huyab/config` (Biome + tsconfig base), reusable CI
   `nguyenhuy158/kit/.github/workflows/check.yml@v0.1.0`.
-- Talks to: sso (JWKS at `auth.huyab.click`, login/logout redirects), shared D1
+- Talks to: sso (JWKS at `auth.huyab.cfd`, login/logout redirects), shared D1
   `db` (`notes_` prefix), R2 `notes-media`, Workers AI. Called by notes-ios
   (explicit `Cookie: huyab_sso=<token>`); mytools pings it for uptime.
 
@@ -90,9 +90,9 @@ content can overflow.
 
 ## Architecture Decisions & Traps (from former CLAUDE.md)
 
-Nhật ký hàng ngày cá nhân, `notes.huyab.click`. React 19 + Vite + Tailwind v4
+Nhật ký hàng ngày cá nhân, `notes.huyab.cfd`. React 19 + Vite + Tailwind v4
 (component copy từ [ui-kit](../ui-kit)) + Cloudflare Worker (Hono) + D1 + R2.
-Đăng nhập qua [SSO chung](../sso) (`auth.huyab.click`). Deploy tự động: repo
+Đăng nhập qua [SSO chung](../sso) (`auth.huyab.cfd`). Deploy tự động: repo
 đã connect Cloudflare Workers Builds, push lên `main` là tự build + deploy.
 
 ### Quyết định kiến trúc
@@ -295,6 +295,6 @@ chung trong `wrangler.jsonc`.
 
 Push lên `main` là Cloudflare Workers Builds tự build + deploy, không đợi
 được ngay lập tức. Sau khi push, kiểm tra bản đã lên prod thật chưa bằng
-`curl https://notes.huyab.click/api/version` — so `commit` trả về với
+`curl https://notes.huyab.cfd/api/version` — so `commit` trả về với
 `git rev-parse HEAD` local; commit chưa khớp nghĩa là build chưa xong, đợi
 rồi check lại.

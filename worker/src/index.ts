@@ -285,7 +285,7 @@ app.get("/api/places", async (c) => {
 
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": "notes.huyab.click (personal journal app)" },
+      headers: { "User-Agent": "notes.huyab.cfd (personal journal app)" },
     });
     if (!res.ok) return c.json({ places: [] });
     const results = await res.json<{ display_name: string }[]>();
