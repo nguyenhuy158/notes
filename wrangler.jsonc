@@ -13,10 +13,10 @@
     "not_found_handling": "single-page-application"
   },
   "vars": {
-    "SSO_ISSUER": "https://auth.huyab.click"
+    "SSO_ISSUER": "https://auth.huyab.cfd"
   },
   "workers_dev": false,
-  "routes": [{ "pattern": "notes.huyab.click", "custom_domain": true }],
+  "routes": [{ "pattern": "notes.huyab.cfd", "custom_domain": true }],
   "d1_databases": [
     {
       "binding": "DB",
