@@ -23,6 +23,19 @@ e2e/                     # playwright-core smoke on @huyab/e2e: run.mjs, readonl
 wrangler.jsonc           # Worker, D1, R2, AI bindings
 ```
 
+## Ecosystem
+
+See the [huyab.cfd ecosystem map](https://github.com/nguyenhuy158/kit/blob/main/docs/ECOSYSTEM.md) for how all personal repos connect.
+
+- Kit packages: `@huyab/sso` (`verifySsoToken` on the `huyab_sso` cookie only,
+  no Bearer; `ssoUrl` for `/login` + `/logout`), `@huyab/e2e` (`startServer`,
+  `run`, `freePort`, `startSsoMock`, `findChromium`, `BASE`, `assertLocalOnly`
+  in `e2e/`), `@huyab/config` (Biome + tsconfig base), reusable CI
+  `nguyenhuy158/kit/.github/workflows/check.yml@v0.1.0`.
+- Talks to: sso (JWKS at `auth.huyab.cfd`, login/logout redirects), shared D1
+  `db` (`notes_` prefix), R2 `notes-media`, Workers AI. Called by notes-ios
+  (explicit `Cookie: huyab_sso=<token>`); mytools pings it for uptime.
+
 ## Build, Test, and Development Commands
 
 - `pnpm install`: install dependencies.
@@ -64,33 +77,6 @@ Use concise Conventional Commits with an emoji prefix, for example
 requests should include a short summary, check/build results, linked issue if
 available, and screenshots for visible UI changes. CI (`.github/workflows/ci.yml`)
 must be green before merging.
-
-## Ecosystem
-
-See the [huyab.cfd ecosystem map](https://github.com/nguyenhuy158/kit/blob/main/docs/ECOSYSTEM.md) for how all personal repos connect.
-
-- Kit packages: `@huyab/sso` (`verifySsoToken` on the `huyab_sso` cookie only,
-  no Bearer; `ssoUrl` for `/login` + `/logout`), `@huyab/e2e` (`startServer`,
-  `run`, `freePort`, `startSsoMock`, `findChromium`, `BASE`, `assertLocalOnly`
-  in `e2e/`), `@huyab/config` (Biome + tsconfig base), reusable CI
-  `nguyenhuy158/kit/.github/workflows/check.yml@v0.1.0`.
-- Talks to: sso (JWKS at `auth.huyab.cfd`, login/logout redirects), shared D1
-  `db` (`notes_` prefix), R2 `notes-media`, Workers AI. Called by notes-ios
-  (explicit `Cookie: huyab_sso=<token>`); mytools pings it for uptime.
-
-## Agent-Specific Instructions
-
-Keep responses short and focused. If a requirement is unclear, ask before making
-assumptions. Use `pnpm` only. Colors come from the `--ui-*` design tokens in
-`src/styles/tokens.css` (structure shared with `../ui-kit`); do not hardcode
-new colors.
-UI primitives come only from [ui-kit](https://github.com/nguyenhuy158/ui-kit)
-(gallery: https://uikit.huyab.cfd). Copy them here and keep them in sync; do
-not hand-roll or fork a primitive in this repo. If ui-kit lacks one, add it to
-ui-kit first (with a Gallery demo), then copy it here.
-Design UI/UX to fit inside a single viewport by default. Avoid page-level
-scrolling; use compact layouts, tabs, panes, or contained internal lists when
-content can overflow.
 
 ## Architecture Decisions & Traps (from former CLAUDE.md)
 
@@ -302,3 +288,17 @@ Push lên `main` là Cloudflare Workers Builds tự build + deploy, không đợ
 `curl https://notes.huyab.cfd/api/version` — so `commit` trả về với
 `git rev-parse HEAD` local; commit chưa khớp nghĩa là build chưa xong, đợi
 rồi check lại.
+
+## Agent-Specific Instructions
+
+Keep responses short and focused. If a requirement is unclear, ask before making
+assumptions. Use `pnpm` only. Colors come from the `--ui-*` design tokens in
+`src/styles/tokens.css` (structure shared with `../ui-kit`); do not hardcode
+new colors.
+UI primitives come only from [ui-kit](https://github.com/nguyenhuy158/ui-kit)
+(gallery: https://uikit.huyab.cfd). Copy them here and keep them in sync; do
+not hand-roll or fork a primitive in this repo. If ui-kit lacks one, add it to
+ui-kit first (with a Gallery demo), then copy it here.
+Design UI/UX to fit inside a single viewport by default. Avoid page-level
+scrolling; use compact layouts, tabs, panes, or contained internal lists when
+content can overflow.
