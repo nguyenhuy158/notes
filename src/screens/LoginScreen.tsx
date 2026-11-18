@@ -32,7 +32,7 @@ export function LoginScreen() {
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-6 px-6 text-center safe-top safe-bottom">
-      <img src="/logo.svg" alt="" width={96} height={96} className="rounded-[28px] shadow-lg" />
+      <img src="/pwa-192.png" alt="" width={96} height={96} className="rounded-[28px] shadow-lg" />
 
       <div className="space-y-2">
         <h1 className="text-xl font-semibold text-fg">{t.auth_title}</h1>

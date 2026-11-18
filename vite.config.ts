@@ -28,7 +28,7 @@ export default defineConfig({
         icons: [
           { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
           { src: "/app-icon.png", sizes: "512x512", type: "image/png" },
-          { src: "/app-icon.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         // Giữ menu chuột phải/long-press icon app trên home screen — mở
         // thẳng Compose cho hôm nay, đọc ở App.tsx qua query "?new=1".
