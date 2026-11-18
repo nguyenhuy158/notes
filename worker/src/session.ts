@@ -3,16 +3,14 @@
  * `notes_users` row.
  */
 
-import { SSO_COOKIE, type SsoClaims, verifySsoToken } from "@huyab/sso";
+import { getClaimsFromRequest, type SsoClaims } from "@huyab/sso";
 import type { Context } from "hono";
-import { getCookie } from "hono/cookie";
 
-/** Claims from the `huyab_sso` cookie only: notes does not accept `Authorization: Bearer`. */
+/** Claims from the `huyab_sso` cookie, else `Authorization: Bearer` (CLIs with an SSO auth key token). */
 export async function getSsoClaims<
   E extends { Bindings: { SSO_ISSUER: string } },
 >(c: Context<E>): Promise<SsoClaims | null> {
-  const token = getCookie(c, SSO_COOKIE);
-  return token ? verifySsoToken(token, c.env.SSO_ISSUER) : null;
+  return getClaimsFromRequest(c.req.raw, c.env.SSO_ISSUER);
 }
 
 /**
