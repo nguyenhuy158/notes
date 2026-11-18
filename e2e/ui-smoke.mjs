@@ -66,6 +66,22 @@ try {
   const stamp = `e2e${Date.now()}`;
   const noteText = `Ghi chú ${stamp}`;
 
+  // 0. CLI: cùng JWT nhưng gửi bằng Authorization: Bearer (không cookie) cũng vào được.
+  const viaBearer = await fetch(`${BASE}/api/me`, {
+    headers: { authorization: `Bearer ${TOKEN}` },
+  });
+  if (viaBearer.status !== 200)
+    throw new Error(`Bearer /api/me: ${viaBearer.status}`);
+  if ((await fetch(`${BASE}/api/me`)).status !== 401)
+    throw new Error("/api/me không token phải 401");
+  const badBearer = await fetch(`${BASE}/api/me`, {
+    headers: { authorization: "Bearer bad.token.here" },
+  });
+  if (badBearer.status !== 401) throw new Error("Bearer sai phải 401");
+  ok(
+    "Authorization: Bearer với JWT SSO hợp lệ được chấp nhận, token sai bị 401",
+  );
+
   // 1. Cookie SSO hợp lệ -> vào thẳng Lịch (không còn màn đăng nhập).
   await page.goto(`${BASE}/`);
   await page.getByRole("tab", { name: "Lịch" }).waitFor(WAIT);

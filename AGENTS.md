@@ -27,8 +27,8 @@ wrangler.jsonc           # Worker, D1, R2, AI bindings
 
 See the [huyab.cfd ecosystem map](https://github.com/nguyenhuy158/kit/blob/main/docs/ECOSYSTEM.md) for how all personal repos connect.
 
-- Kit packages: `@huyab/sso` (`verifySsoToken` on the `huyab_sso` cookie only,
-  no Bearer; `ssoUrl` for `/login` + `/logout`), `@huyab/e2e` (`startServer`,
+- Kit packages: `@huyab/sso` (`getClaimsFromRequest`: the `huyab_sso` cookie, else
+  `Authorization: Bearer`; `ssoUrl` for `/login` + `/logout`), `@huyab/e2e` (`startServer`,
   `run`, `freePort`, `startSsoMock`, `findChromium`, `BASE`, `assertLocalOnly`
   in `e2e/`), `@huyab/config` (Biome + tsconfig base), reusable CI
   `nguyenhuy158/kit/.github/workflows/check.yml@v0.1.0`.
