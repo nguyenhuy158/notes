@@ -1,4 +1,4 @@
-import { NOTE_TYPES, type NoteType } from "../shared/notes";
+import { NOTE_TYPES, type NoteType } from "../../shared/notes";
 
 /**
  * Loại note mở sẵn khi vào Compose. Chỉ lưu client (localStorage) như

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { api } from "../api";
-import { MAX_VIDEO_BYTES, MOODS, type Mood, type NoteType } from "../../shared/notes";
+import { MAX_VIDEO_BYTES, MOODS, type Mood, type NoteType } from "../../../shared/notes";
 import { MoodEmoji } from "../moodEmojis";
 import { useI18n } from "../i18n";
 import { formatTime, formatVi } from "../date";

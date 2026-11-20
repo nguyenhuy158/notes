@@ -8,7 +8,7 @@
  * sự kiện `online` hoặc lúc app mở lại.
  */
 import { api } from "./api";
-import type { Mood } from "../shared/notes";
+import type { Mood } from "../../shared/notes";
 
 const KEY = "offline-queue";
 

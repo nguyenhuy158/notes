@@ -4,7 +4,7 @@ import { vi, enUS } from "date-fns/locale";
 import { Camera, Flame, Mic, PenLine, Search, Video, X } from "lucide-react";
 import { api } from "../api";
 import type { Note } from "../api";
-import { MOODS, type NoteType } from "../../shared/notes";
+import { MOODS, type NoteType } from "../../../shared/notes";
 import { NOTE_TYPE_ICON } from "../noteTypeIcon";
 import { useI18n } from "../i18n";
 import { MoodEmoji } from "../moodEmojis";
