@@ -1,23 +1,49 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { api } from "./api";
 import { CalendarScreen } from "./screens/CalendarScreen";
-import { ComposeScreen } from "./screens/ComposeScreen";
-import { DayScreen } from "./screens/DayScreen";
-import { AlbumScreen } from "./screens/AlbumScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { PinLockScreen } from "./screens/PinLockScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { ShareScreen } from "./screens/ShareScreen";
 import { TimelineScreen } from "./screens/TimelineScreen";
-import { TrashScreen } from "./screens/TrashScreen";
-import { TagsScreen } from "./screens/TagsScreen";
-import { TagNotesScreen } from "./screens/TagNotesScreen";
 import { BottomNav, type BottomNavItem } from "./ui/BottomNav";
 import { SideNav } from "./ui/SideNav";
 import { Calendar, Settings, History } from "lucide-react";
 import { useI18n } from "./i18n";
-import { isUnlockedThisSession, lockIfIdleTooLong, markHidden, markUnlocked } from "./pinLock";
+import {
+  isUnlockedThisSession,
+  lockIfIdleTooLong,
+  markHidden,
+  markUnlocked,
+} from "./pinLock";
 import { todayString } from "./date";
+
+const ComposeScreen = lazy(() =>
+  import("./screens/ComposeScreen").then((m) => ({ default: m.ComposeScreen })),
+);
+const DayScreen = lazy(() =>
+  import("./screens/DayScreen").then((m) => ({ default: m.DayScreen })),
+);
+const AlbumScreen = lazy(() =>
+  import("./screens/AlbumScreen").then((m) => ({ default: m.AlbumScreen })),
+);
+const SettingsScreen = lazy(() =>
+  import("./screens/SettingsScreen").then((m) => ({
+    default: m.SettingsScreen,
+  })),
+);
+const ShareScreen = lazy(() =>
+  import("./screens/ShareScreen").then((m) => ({ default: m.ShareScreen })),
+);
+const TrashScreen = lazy(() =>
+  import("./screens/TrashScreen").then((m) => ({ default: m.TrashScreen })),
+);
+const TagsScreen = lazy(() =>
+  import("./screens/TagsScreen").then((m) => ({ default: m.TagsScreen })),
+);
+const TagNotesScreen = lazy(() =>
+  import("./screens/TagNotesScreen").then((m) => ({
+    default: m.TagNotesScreen,
+  })),
+);
 
 type Tab = "calendar" | "timeline" | "settings";
 type Screen =
@@ -32,7 +58,7 @@ type Auth = { status: "checking" } | { status: "anon" } | { status: "authed" };
 
 const SHARE_PATH_RE = /^\/s\/([^/]+)/;
 
-export function App() {
+function AppScreens() {
   // Route /s/:token phải xử lý TRƯỚC mọi hook khác — không đăng nhập vẫn xem
   // được, và app không dùng URL router thật nên đọc thẳng location.pathname.
   // An toàn về thứ tự hook vì pathname không đổi giữa các lần render của
@@ -50,7 +76,9 @@ export function App() {
     let cancelled = false;
     api
       .checkAuth()
-      .then((user) => !cancelled && setAuth({ status: user ? "authed" : "anon" }))
+      .then(
+        (user) => !cancelled && setAuth({ status: user ? "authed" : "anon" }),
+      )
       .catch(() => !cancelled && setAuth({ status: "anon" }));
     return () => {
       cancelled = true;
@@ -79,12 +107,15 @@ export function App() {
       }
     }
     document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
   if (auth.status === "checking") {
     return (
-      <div className="grid min-h-dvh place-items-center text-sm text-fg-muted">{t.auth_checking}</div>
+      <div className="grid min-h-dvh place-items-center text-sm text-fg-muted">
+        {t.auth_checking}
+      </div>
     );
   }
 
@@ -160,30 +191,45 @@ export function App() {
 
   return (
     <div className="lg:flex">
-      <SideNav items={NAV_ITEMS} active={tab} onChange={setTab} title={t.auth_title} />
+      <SideNav
+        items={NAV_ITEMS}
+        active={tab}
+        onChange={setTab}
+        title={t.auth_title}
+      />
 
       {/* pb-20 chi can khi con BottomNav (duoi lg). Tren desktop noi dung rong
           hon nhung van gioi han max-w-3xl cho do dai dong doc duoc. */}
       <div className="mx-auto w-full max-w-md pb-20 lg:max-w-3xl lg:pb-6">
-      {tab === "calendar" && (
-        <CalendarScreen
-          onOpenDay={(date) => setScreen({ name: "day", date })}
-          onOpenTag={(tag) => setScreen({ name: "tagNotes", tag })}
-        />
-      )}
-      {tab === "timeline" && (
-        <TimelineScreen onOpenDay={(date) => setScreen({ name: "day", date })} />
-      )}
-      {tab === "settings" && (
-        <SettingsScreen
-          onOpenTrash={() => setScreen({ name: "trash" })}
-          onOpenAlbum={() => setScreen({ name: "album" })}
-          onOpenTags={() => setScreen({ name: "tags" })}
-        />
-      )}
+        {tab === "calendar" && (
+          <CalendarScreen
+            onOpenDay={(date) => setScreen({ name: "day", date })}
+            onOpenTag={(tag) => setScreen({ name: "tagNotes", tag })}
+          />
+        )}
+        {tab === "timeline" && (
+          <TimelineScreen
+            onOpenDay={(date) => setScreen({ name: "day", date })}
+          />
+        )}
+        {tab === "settings" && (
+          <SettingsScreen
+            onOpenTrash={() => setScreen({ name: "trash" })}
+            onOpenAlbum={() => setScreen({ name: "album" })}
+            onOpenTags={() => setScreen({ name: "tags" })}
+          />
+        )}
       </div>
 
       <BottomNav items={NAV_ITEMS} active={tab} onChange={setTab} />
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <Suspense fallback={null}>
+      <AppScreens />
+    </Suspense>
   );
 }
