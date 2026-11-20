@@ -20,7 +20,26 @@ export async function getSsoClaims<
  * (Google already verified it), and it survives the SSO service ever
  * changing how it generates `sub`.
  */
+const USER_ID_CACHE_TTL_MS = 300_000;
+const USER_ID_CACHE_MAX_ENTRIES = 1000;
+const userIdCache = new Map<string, { id: string; expiresAt: number }>();
+
 export async function resolveUserId(
+  db: D1Database,
+  claims: SsoClaims,
+): Promise<string> {
+  const cached = userIdCache.get(claims.email);
+  if (cached && cached.expiresAt > Date.now()) return cached.id;
+  const id = await lookupOrCreateUserId(db, claims);
+  if (userIdCache.size >= USER_ID_CACHE_MAX_ENTRIES) userIdCache.clear();
+  userIdCache.set(claims.email, {
+    id,
+    expiresAt: Date.now() + USER_ID_CACHE_TTL_MS,
+  });
+  return id;
+}
+
+async function lookupOrCreateUserId(
   db: D1Database,
   claims: SsoClaims,
 ): Promise<string> {
