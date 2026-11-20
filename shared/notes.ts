@@ -1,4 +1,4 @@
-// Hợp đồng dữ liệu note dùng chung cho frontend (src/) và worker — sửa một chỗ
+// Hợp đồng dữ liệu note dùng chung cho frontend (frontend/src/) và worker — sửa một chỗ
 // là cả client lẫn whitelist phía server cùng đổi theo.
 
 export const NOTE_TYPES = ["text", "audio", "photo", "video"] as const;

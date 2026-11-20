@@ -7,7 +7,7 @@ frontend and a Hono Cloudflare Worker backend with D1 (shared `db`, tables
 prefixed `notes_`) and R2 (`notes-media`). Login via shared SSO.
 
 ```text
-src/                     # Frontend (no URL router; screen state in App.tsx)
+frontend/src/                     # Frontend (no URL router; screen state in App.tsx)
   main.tsx  App.tsx      #   Entry + screen switching (root/day/compose)
   screens/               #   One component per screen (Calendar, Day, Compose, ...)
   ui/                    #   UI primitives copied from ../ui-kit (Button, Modal, ...)
@@ -15,8 +15,8 @@ src/                     # Frontend (no URL router; screen state in App.tsx)
   styles/tokens.css      #   --ui-* design tokens (warm-brown brand values)
   styles.css             #   Global styles
   api.ts  i18n.tsx  ...  #   API client, VI/EN dictionary, local features
-worker/src/              # Hono Worker: index.ts (routes), session.ts (SSO cookie via @huyab/sso + users)
-shared/                  # Shared by src/ + worker: notes.ts (note types, moods, limits), build-info
+backend/src/              # Hono Worker: index.ts (routes), session.ts (SSO cookie via @huyab/sso + users)
+shared/                  # Shared by frontend/src/ + worker: notes.ts (note types, moods, limits), build-info
 migrations/              # D1 migrations (applied by db:migrate:*), history in notes_migrations
 public/                  # PWA icons/logos
 e2e/                     # playwright-core smoke on @huyab/e2e: run.mjs, readonly-smoke, ui-smoke
@@ -102,7 +102,7 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.cfd`. React 19 + Vite + Tailwind 
   react-router hay tanstack-router — app đủ nhỏ, không cần deep-link.
   BottomNav 3 tab (Lịch / Dòng thời gian / Cài đặt) chỉ hiện ở root, ẩn khi
   vào `day`/`compose` (dùng HeaderBar + nút back thay vào).
-- **Icon dùng `lucide-react`** (đổi từ tự vẽ SVG trong `src/icons.tsx`, file
+- **Icon dùng `lucide-react`** (đổi từ tự vẽ SVG trong `frontend/src/icons.tsx`, file
   này đã xoá) — số icon cần dùng tăng lên, tree-shake tốt nên không đáng tự
   vẽ nữa. Xem [dev-notes/icon-libs.md](../dev-notes/icon-libs.md) để biết vì
   sao chọn lucide thay vì tabler/heroicons/phosphor.
@@ -111,17 +111,17 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.cfd`. React 19 + Vite + Tailwind 
   icon nhận diện nhanh hơn, đỡ tốn chỗ. Chỉ giữ chữ khi icon một mình gây mơ
   hồ (nút Lưu/Huỷ, tab bar có cả icon+label). Chi tiết + ví dụ:
   [dev-notes/icon-vs-text-ui.md](../dev-notes/icon-vs-text-ui.md).
-- **Mood tự vẽ SVG** (`src/moodEmojis.tsx`), không phải emoji unicode thẳng
+- **Mood tự vẽ SVG** (`frontend/src/moodEmojis.tsx`), không phải emoji unicode thẳng
   dù giá trị lưu DB vẫn là ký tự unicode cũ (`😄🙂😐😔😡😴🥳😰` — xem `MOODS`
   trong `shared/notes.ts`, dùng chung cho cả client lẫn whitelist worker).
   `MoodEmoji` chỉ đổi phần hiển thị, map unicode → SVG mặt kawaii tự vẽ;
   không đụng schema backend. Thêm mood mới phải sửa 2 chỗ: `MOODS`
   (`shared/notes.ts`) và `MOOD_EMOJI` trong `moodEmojis.tsx`.
-- **Sticker trang trí** (`src/stickers.tsx`, 31 icon: coffee/book/heart/star...
+- **Sticker trang trí** (`frontend/src/stickers.tsx`, 31 icon: coffee/book/heart/star...
   đặt tên riêng, registry `STICKERS`) — khác `moodEmojis.tsx` (mặt cảm xúc) và
   `lucide-react` (icon chức năng như back/save/delete). Dùng cho empty state,
   banner, huy hiệu — chỗ cần trang trí kiểu kawaii, không phải hành động.
-- **Tông màu riêng cho notes**: `src/styles/tokens.css` là bản copy từ ui-kit
+- **Tông màu riêng cho notes**: `frontend/src/styles/tokens.css` là bản copy từ ui-kit
   đã chỉnh `--ui-primary`/`--ui-bg` sang nâu ấm (warm journal), KHÔNG đồng bộ
   ngược lại ui-kit gốc (vẫn tím) — mỗi project copy tokens.css riêng nên đổi
   tại đây an toàn, không ảnh hưởng chia-keo/sso/app khác.
@@ -152,7 +152,7 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.cfd`. React 19 + Vite + Tailwind 
   (`@cf/openai/whisper`, binding `AI` trong `wrangler.jsonc`) khi tạo note
   audio mà không kèm caption — lỗi ở bước này không chặn lưu note (transcribe
   là tiện ích thêm, không phải yêu cầu).
-- **Khoá PIN cục bộ** (`src/pinLock.ts`): CHỈ chắn người cầm máy đã đăng nhập
+- **Khoá PIN cục bộ** (`frontend/src/pinLock.ts`): CHỈ chắn người cầm máy đã đăng nhập
   sẵn, không phải bảo mật thật — hash SHA-256 lưu `localStorage`, không có
   cách khôi phục nếu quên (không đồng bộ server). Mở khoá tính theo phiên
   (`sessionStorage`), không cần nhập lại khi chuyển tab trong cùng 1 lần mở
@@ -173,7 +173,7 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.cfd`. React 19 + Vite + Tailwind 
   `GET /api/places` (proxy Nominatim/OpenStreetMap, miễn phí không cần API
   key) — worker tự gọi (không phải browser) để đặt đúng `User-Agent` theo
   chính sách dùng của Nominatim và né CORS. Vẫn chỉ lưu tên hiển thị dạng
-  text, KHÔNG lưu toạ độ. UI dùng chung `src/ui/PlaceAutocomplete.tsx` ở cả
+  text, KHÔNG lưu toạ độ. UI dùng chung `frontend/src/ui/PlaceAutocomplete.tsx` ở cả
   Compose lẫn sửa location trong Day.
 - **Album ảnh in/PDF**: không thêm lib PDF, dùng `window.print()` +
   `@media print` (xem `AlbumScreen.tsx`) — "Lưu dưới dạng PDF" có sẵn trong
@@ -181,26 +181,26 @@ Nhật ký hàng ngày cá nhân, `notes.huyab.cfd`. React 19 + Vite + Tailwind 
 - **Từ hay dùng** (`GET /api/words`): tokenize đơn giản + stopword tiếng
   Việt/Anh rất ngắn (không đầy đủ ngôn ngữ học) — chỉ để thống kê vui, không
   phải NLP thật.
-- **Hàng đợi offline** (`src/offlineQueue.ts`): CHỈ text note (tạo/sửa), lưu
+- **Hàng đợi offline** (`frontend/src/offlineQueue.ts`): CHỈ text note (tạo/sửa), lưu
   localStorage, tự đồng bộ khi có sự kiện `online` hoặc app mở lại
   (`main.tsx`). Audio/photo KHÔNG được queue — lỗi mạng vẫn báo lỗi bình
   thường (blob lớn, để trong scope này phức tạp hơn nhiều: cần IndexedDB +
   giới hạn dung lượng). Phân biệt lỗi mạng thật (`TypeError` từ `fetch`) với
   lỗi HTTP thường qua `isNetworkError()` — chỉ lỗi mạng mới queue.
-- **Định dạng chữ tối giản** (`src/markdownLite.tsx`): `**đậm**`/`*nghiêng*`/
+- **Định dạng chữ tối giản** (`frontend/src/markdownLite.tsx`): `**đậm**`/`*nghiêng*`/
   `- ` đầu dòng, người dùng tự gõ cú pháp trong textarea thường — KHÔNG phải
   editor WYSIWYG, chỉ phần hiển thị (không phải lúc sửa) mới render ra.
-- **Đọc để gõ chữ** (`src/dictation.ts`, Web Speech API): khác Whisper
+- **Đọc để gõ chữ** (`frontend/src/dictation.ts`, Web Speech API): khác Whisper
   transcribe audio đã ghi sẵn — cái này nhận diện SỐNG lúc đang gõ. Chỉ
   Chrome/Edge hỗ trợ, `supported: false` thì ẩn nút (không báo lỗi).
-- **Khoá riêng từng note** (`src/noteLocks.ts`): danh sách id lưu
+- **Khoá riêng từng note** (`frontend/src/noteLocks.ts`): danh sách id lưu
   localStorage, KHÔNG đồng bộ thiết bị khác, KHÔNG mã hoá nội dung — chỉ
   blur ở UI tới khi nhập đúng PIN đã đặt (`pinLock.ts`). Nếu chưa đặt PIN thì
   chặn khoá, báo `day_lock_needs_pin`.
-- **Đổi màu chủ đạo** (`src/accentColor.ts`): chỉ đổi HUE trong oklch, giữ
+- **Đổi màu chủ đạo** (`frontend/src/accentColor.ts`): chỉ đổi HUE trong oklch, giữ
   nguyên lightness/chroma của theme gốc — set CSS variable `--ui-primary*`
   trực tiếp qua `style`, áp TRƯỚC render trong `main.tsx` (tránh nháy màu).
-- **Nâng cấp hệ thống nhãn**: editor dạng chip (`src/ui/TagChipInput.tsx`,
+- **Nâng cấp hệ thống nhãn**: editor dạng chip (`frontend/src/ui/TagChipInput.tsx`,
   thay ô text thô cũ), gợi ý nhãn cũ qua `GET /api/tags` (đếm bằng cách tự
   parse cột `tags`, không GROUP BY SQL được vì lưu dạng chuỗi). Gắn nhãn được
   ngay lúc tạo note (POST `/api/notes` nhận field `tags` tuỳ chọn) thay vì
@@ -257,14 +257,14 @@ Ghi âm cũng tự dò mime hỗ trợ qua `MediaRecorder.isTypeSupported()`
 `audio/webm` — Safari không hỗ trợ webm, ép cứng làm ghi ra file mà chính
 trình duyệt đó cũng phát lại sai.
 
-Player audio dùng component tự vẽ `src/ui/AudioPlayer.tsx` (nút play/seek/
+Player audio dùng component tự vẽ `frontend/src/ui/AudioPlayer.tsx` (nút play/seek/
 thời gian riêng), KHÔNG dùng `<audio controls>` mặc định — giao diện gốc mỗi
 hệ điều hành/trình duyệt một kiểu, xấu và không theo được theme sáng/tối.
 Vẫn dùng thẻ `<audio>` thật để phát (ẩn UI gốc bằng cách bỏ `controls`).
 
 ### i18n
 
-`src/i18n.tsx` — VI mặc định, có EN. `Dict` type cố tình KHÔNG dùng
+`frontend/src/i18n.tsx` — VI mặc định, có EN. `Dict` type cố tình KHÔNG dùng
 `typeof dict.vi` trực tiếp (union `vi | en` với literal string khác nhau
 không gán được cho nhau) — dùng mapped type ép mọi field về `string` hoặc
 giữ nguyên signature hàm. Thêm string mới: thêm cả 2 ngôn ngữ trong `dict`,
@@ -293,7 +293,7 @@ rồi check lại.
 
 Keep responses short and focused. If a requirement is unclear, ask before making
 assumptions. Use `pnpm` only. Colors come from the `--ui-*` design tokens in
-`src/styles/tokens.css` (structure shared with `../ui-kit`); do not hardcode
+`frontend/src/styles/tokens.css` (structure shared with `../ui-kit`); do not hardcode
 new colors.
 UI primitives come only from [ui-kit](https://github.com/nguyenhuy158/ui-kit)
 (gallery: https://uikit.huyab.cfd). Copy them here and keep them in sync; do

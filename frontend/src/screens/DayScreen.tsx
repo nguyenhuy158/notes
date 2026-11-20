@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, type Note } from "../api";
-import { MOODS, type Mood } from "../../shared/notes";
+import { MOODS, type Mood } from "../../../shared/notes";
 import { useI18n } from "../i18n";
 import { MoodEmoji } from "../moodEmojis";
 import { formatTime, formatVi, shiftDateString, todayString } from "../date";

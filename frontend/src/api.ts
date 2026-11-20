@@ -1,4 +1,4 @@
-import type { Mood, NoteType } from "../shared/notes";
+import type { Mood, NoteType } from "../../shared/notes";
 import { downloadBlob } from "./lib/download";
 
 export type Note = {
