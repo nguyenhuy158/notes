@@ -181,6 +181,13 @@ a,
   }
 }
 
+@keyframes ui-slide-down-out {
+  to {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
 @keyframes ui-spin {
   to {
     transform: rotate(360deg);
