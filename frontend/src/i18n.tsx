@@ -124,7 +124,6 @@ const dict = {
     day_move_date: "Chuyển ngày",
     day_move_date_failed: "Chuyển ngày thất bại",
     settings_words: "Từ hay dùng",
-    settings_words_empty: "Chưa đủ dữ liệu",
     year_stats_notes: (n: number) => `${n} ghi chú`,
     year_stats_top_mood: "Cảm xúc nhiều nhất",
     year_stats_longest_streak: (n: number) => `Chuỗi dài nhất: ${n} ngày`,
@@ -154,7 +153,6 @@ const dict = {
     day_summary_loading: "Đang tóm tắt...",
     day_summary_retry: "Tạo lại",
     tag_notes_empty: "Không có note nào gắn nhãn này",
-    settings_manage_tags: "Quản lý nhãn",
     tags_screen_title: "Nhãn",
     tags_screen_empty: "Chưa có nhãn nào",
     tags_screen_count: (n: number) => `${n} note`,
@@ -192,6 +190,10 @@ const dict = {
     compose_photo_compress_failed: "Không nén được ảnh, dùng ảnh gốc",
     compose_photo_retake: "Chọn lại",
     settings_title: "Cài đặt",
+    settings_tab_general: "Chung",
+    settings_tab_options: "Tuỳ chọn",
+    settings_tab_data: "Dữ liệu",
+    settings_group_look: "Hiển thị",
     settings_theme: "Giao diện",
     settings_language: "Ngôn ngữ",
     settings_export: "Xuất dữ liệu (backup)",
@@ -325,7 +327,6 @@ const dict = {
     day_move_date: "Move date",
     day_move_date_failed: "Failed to move date",
     settings_words: "Frequent words",
-    settings_words_empty: "Not enough data yet",
     year_stats_notes: (n: number) => `${n} notes`,
     year_stats_top_mood: "Most common mood",
     year_stats_longest_streak: (n: number) => `Longest streak: ${n} days`,
@@ -355,7 +356,6 @@ const dict = {
     day_summary_loading: "Summarizing...",
     day_summary_retry: "Regenerate",
     tag_notes_empty: "No notes with this tag",
-    settings_manage_tags: "Manage tags",
     tags_screen_title: "Tags",
     tags_screen_empty: "No tags yet",
     tags_screen_count: (n: number) => `${n} notes`,
@@ -393,6 +393,10 @@ const dict = {
     compose_photo_compress_failed: "Couldn't compress, using original",
     compose_photo_retake: "Choose again",
     settings_title: "Settings",
+    settings_tab_general: "General",
+    settings_tab_options: "Options",
+    settings_tab_data: "Data",
+    settings_group_look: "Appearance",
     settings_theme: "Theme",
     settings_language: "Language",
     settings_export: "Export data (backup)",
@@ -447,20 +451,4 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({ lang, setLang, t: dict[lang] }), [lang, setLang]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
-}
-
-export function LanguageToggle({ className }: { className?: string }) {
-  const { lang, setLang } = useI18n();
-
-  return (
-    <button
-      type="button"
-      onClick={() => setLang(lang === "vi" ? "en" : "vi")}
-      aria-label={`Language: ${lang === "vi" ? "Tiếng Việt" : "English"}. Tap to switch`}
-      title={lang === "vi" ? "Tiếng Việt" : "English"}
-      className={className ?? "rounded-ui border border-border px-3 py-1.5 text-sm font-medium text-fg transition hover:bg-surface-muted"}
-    >
-      {lang === "vi" ? "VI" : "EN"}
-    </button>
-  );
 }

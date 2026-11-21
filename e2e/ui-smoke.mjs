@@ -10,12 +10,13 @@
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assertLocalOnly, findChromium } from "@huyab/e2e";
+import { assertFitsViewport, assertLocalOnly, findChromium } from "@huyab/e2e";
 import { chromium } from "playwright-core";
 
 const BASE = (process.env.E2E_BASE_URL || "").replace(/\/$/, "");
 const TOKEN = process.env.E2E_SSO_TOKEN;
 const WAIT = { timeout: 15000 };
+const SETTINGS_TABS = ["Chung", "Tuỳ chọn", "Dữ liệu"];
 const MOBILE = { viewport: { width: 390, height: 844 } };
 
 assertLocalOnly(BASE);
@@ -146,6 +147,7 @@ try {
   await noteCard(noteText).waitFor({ state: "detached", timeout: WAIT.timeout });
   await page.getByRole("button", { name: "Quay lại" }).click();
   await page.getByRole("tab", { name: "Cài đặt" }).click();
+  await page.getByRole("tab", { name: "Dữ liệu" }).click();
   await page.getByRole("button", { name: "Thùng rác" }).click();
   await page.getByText(noteText).waitFor(WAIT);
   await page.getByRole("button", { name: "Xoá vĩnh viễn" }).click();
@@ -160,6 +162,22 @@ try {
   }, today);
   if (remaining.join() !== "photo") throw new Error(`notes hôm nay sau khi xoá: ${remaining.join()}`);
   ok("API agrees: only the photo note remains");
+
+  // 8. Cài đặt: mỗi tab vừa một màn hình (Settings rule + One-screen rule của kit).
+  await page.getByRole("button", { name: "Quay lại" }).click();
+  await page.getByRole("tab", { name: "Cài đặt" }).click();
+  for (const name of SETTINGS_TABS) {
+    await page.getByRole("tab", { name }).click();
+    await assertFitsViewport(page, { label: `settings/${name}` });
+  }
+  await page.getByRole("tab", { name: "Tuỳ chọn" }).click();
+  await page.getByRole("combobox", { name: "Loại note mặc định" }).click();
+  await page.getByRole("option", { name: "Ảnh" }).click();
+  await page.reload();
+  await page.getByRole("tab", { name: "Cài đặt" }).click();
+  await page.getByRole("tab", { name: "Tuỳ chọn" }).click();
+  await page.getByRole("combobox", { name: "Loại note mặc định" }).filter({ hasText: "Ảnh" }).waitFor(WAIT);
+  ok("settings tabs fit one viewport and a choice saves at once");
 } catch (error) {
   failed += 1;
   console.log("FAIL:", error.message);
